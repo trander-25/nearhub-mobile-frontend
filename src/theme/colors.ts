@@ -1,0 +1,25 @@
+export const colors = {
+  primary: '#003D9B',
+  primaryDark: '#0052CC',
+  background: '#FAF8FF',
+  surface: '#FFFFFF',
+  surfaceSecondary: '#F3F3FD',
+  chipBg: '#E7E7F2',
+  textPrimary: '#191B23',
+  textSecondary: '#434654',
+  textTertiary: '#737685',
+  textPlaceholder: 'rgba(115,118,133,0.6)',
+  border: '#E6E8EC',
+  success: '#7DE949',
+  accent: '#3C57FF',
+  danger: '#E14D4D',
+  shadow: '#000000',
+  distanceBadgeBg: 'rgba(182,200,254,0.9)',
+  distanceBadgeText: '#415382',
+  categoryBadgeBg: 'rgba(255,255,255,0.9)',
+  tabInactive: '#64748B',
+  overlay: 'rgba(255,255,255,0.2)',
+  star: '#F59E0B',
+} as const;
+
+export type AppColors = typeof colors;

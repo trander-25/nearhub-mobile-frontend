@@ -1,0 +1,155 @@
+import type {
+  ApiEvent,
+  CategoryItem,
+  EventData,
+  EventDetailResponse,
+  EventDiscoveryResponse,
+  NearbyQueryParams,
+  ReviewItem,
+  SearchQueryParams,
+} from '@/types';
+import { apiRequest, buildQueryString } from './apiClient';
+
+const DEFAULT_LAT = 10.7769;
+const DEFAULT_LNG = 106.7009;
+
+function pickDefined<T extends Record<string, unknown>>(input?: Partial<T>): Partial<T> {
+  if (!input) return {};
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
+}
+
+function toEventCardData(event: ApiEvent): EventData {
+  const startDate = new Date(event.startAt);
+  const dateLabel = Number.isNaN(startDate.getTime())
+    ? event.startAt
+    : startDate.toLocaleString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+  return {
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    imageUrl:
+      event.images?.[0] ??
+      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80',
+    dateLabel,
+    address: event.location.address,
+    city: event.location.city ?? 'Location TBA',
+    category: event.category,
+    distanceKm: event.distanceKm,
+    startAt: event.startAt,
+    endAt: event.endAt ?? undefined,
+    totalViews: event.totalViews,
+  };
+}
+
+export async function getNearbyEvents(
+  params?: Partial<NearbyQueryParams>,
+): Promise<{ events: EventData[]; total: number; totalPages: number; page: number }> {
+  const definedParams = pickDefined<NearbyQueryParams>(params);
+  const query: NearbyQueryParams = {
+    lat: DEFAULT_LAT,
+    lng: DEFAULT_LNG,
+    radius: 100,
+    page: 1,
+    limit: 20,
+    ...definedParams,
+  };
+
+  const qs = buildQueryString(query as unknown as Record<string, unknown>);
+  const response = await apiRequest<EventDiscoveryResponse>(`/events/nearby${qs}`);
+  return {
+    events: (response.items ?? []).map(toEventCardData),
+    total: response.total,
+    totalPages: response.totalPages,
+    page: response.page,
+  };
+}
+
+export async function searchEvents(
+  params?: Partial<SearchQueryParams>,
+): Promise<{ events: EventData[]; total: number; totalPages: number; page: number }> {
+  const definedParams = pickDefined<SearchQueryParams>(params);
+  const query: SearchQueryParams = {
+    page: 1,
+    limit: 20,
+    ...definedParams,
+  };
+
+  const qs = buildQueryString(query as unknown as Record<string, unknown>);
+  const response = await apiRequest<EventDiscoveryResponse>(`/events/search${qs}`);
+  return {
+    events: (response.items ?? []).map(toEventCardData),
+    total: response.total,
+    totalPages: response.totalPages,
+    page: response.page,
+  };
+}
+
+export async function getCategories(): Promise<CategoryItem[]> {
+  return apiRequest<CategoryItem[]>('/categories');
+}
+
+export async function getEventDetail(
+  eventId: string,
+): Promise<{ event: EventData; reviews: ReviewItem[]; rating: { average: number; total: number } }> {
+  const response = await apiRequest<EventDetailResponse>(`/events/${eventId}`);
+  return {
+    event: toEventCardData(response.event),
+    reviews: response.reviews,
+    rating: response.rating,
+  };
+}
+
+export async function toggleLikeEvent(
+  eventId: string,
+): Promise<{ liked: boolean }> {
+  const response = await apiRequest<{ message: string; liked: boolean }>(`/events/${eventId}/like`, {
+    method: 'POST',
+    requireAuth: true,
+  });
+  return { liked: response.liked };
+}
+
+export async function rsvpEvent(eventId: string): Promise<void> {
+  await apiRequest<{ message: string }>(`/events/${eventId}/rsvp`, {
+    method: 'POST',
+    requireAuth: true,
+  });
+}
+
+export async function cancelRsvp(eventId: string): Promise<void> {
+  await apiRequest<{ message: string }>(`/events/${eventId}/rsvp`, {
+    method: 'DELETE',
+    requireAuth: true,
+  });
+}
+
+export async function submitReview(
+  eventId: string,
+  rating: number,
+  comment: string,
+): Promise<void> {
+  await apiRequest<{ message: string }>(`/events/${eventId}/reviews`, {
+    method: 'POST',
+    requireAuth: true,
+    body: { rating, comment },
+  });
+}
+
+export async function getEventDiscovery(keyword?: string): Promise<EventData[]> {
+  const query = keyword?.trim();
+  if (query) {
+    const result = await searchEvents({ keyword: query });
+    return result.events;
+  }
+  const result = await getNearbyEvents();
+  return result.events;
+}
