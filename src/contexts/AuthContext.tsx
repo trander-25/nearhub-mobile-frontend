@@ -2,7 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import * as SecureStore from 'expo-secure-store';
 import { setAuthToken } from '@/services/apiClient';
 import * as authService from '@/services/authService';
+import { getOrganizerStats } from '@/services/organizerService';
+import { getPushRegistrationContext, syncPushTokenWithBackend } from '@/services/pushNotificationService';
 import type { AuthUser, LoginRequest, RegisterRequest } from '@/types/auth.types';
+import { isOrganizerRole } from '@/utils/role';
 
 const STORAGE_KEY_ACCESS = 'nearhub_access_token';
 const STORAGE_KEY_REFRESH = 'nearhub_refresh_token';
@@ -15,8 +18,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  signIn: (data: LoginRequest) => Promise<void>;
-  signUp: (data: RegisterRequest) => Promise<void>;
+  signIn: (data: LoginRequest) => Promise<AuthUser>;
+  signUp: (data: RegisterRequest) => Promise<AuthUser>;
   signOut: () => Promise<void>;
   refreshUser: (updatedUser: AuthUser) => void;
 }
@@ -37,6 +40,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreSession();
   }, []);
 
+  async function resolveEffectiveRole(inputUser: AuthUser): Promise<AuthUser> {
+    const normalizedRole = (inputUser.role ?? '').trim().toLowerCase();
+    if (isOrganizerRole(normalizedRole)) {
+      return { ...inputUser, role: 'organizer' };
+    }
+
+    // Fallback: infer organizer role from actual permission on organizer APIs.
+    // This handles stale/incorrect role values persisted in client state.
+    try {
+      await getOrganizerStats();
+      return { ...inputUser, role: 'organizer' };
+    } catch {
+      return { ...inputUser, role: normalizedRole || inputUser.role };
+    }
+  }
+
   async function restoreSession() {
     try {
       const [accessToken, refreshTokenStr, userJson] = await Promise.all([
@@ -47,7 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (accessToken && userJson) {
         setAuthToken(accessToken);
-        setUser(JSON.parse(userJson));
+        const parsedUser = JSON.parse(userJson) as AuthUser;
+        const resolvedUser = await resolveEffectiveRole(parsedUser);
+        setUser(resolvedUser);
+        await SecureStore.setItemAsync(STORAGE_KEY_USER, JSON.stringify(resolvedUser));
+        syncPushTokenWithBackend().catch(() => {});
       } else if (refreshTokenStr) {
         const res = await authService.refreshToken(refreshTokenStr);
         await persistAuth(res.user, res.tokens.accessToken, res.tokens.refreshToken);
@@ -61,12 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function persistAuth(u: AuthUser, access: string, refresh: string) {
     setAuthToken(access);
-    setUser(u);
+    const resolvedUser = await resolveEffectiveRole(u);
+    setUser(resolvedUser);
     await Promise.all([
       SecureStore.setItemAsync(STORAGE_KEY_ACCESS, access),
       SecureStore.setItemAsync(STORAGE_KEY_REFRESH, refresh),
-      SecureStore.setItemAsync(STORAGE_KEY_USER, JSON.stringify(u)),
+      SecureStore.setItemAsync(STORAGE_KEY_USER, JSON.stringify(resolvedUser)),
     ]);
+    syncPushTokenWithBackend().catch(() => {});
   }
 
   async function clearAuth() {
@@ -80,13 +105,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = useCallback(async (data: LoginRequest) => {
-    const res = await authService.login(data);
+    const pushContext = await getPushRegistrationContext();
+    const res = await authService.login({ ...data, ...pushContext });
     await persistAuth(res.user, res.tokens.accessToken, res.tokens.refreshToken);
+    return await resolveEffectiveRole(res.user);
   }, []);
 
   const signUp = useCallback(async (data: RegisterRequest) => {
-    const res = await authService.register(data);
+    const pushContext = await getPushRegistrationContext();
+    const res = await authService.register({ ...data, ...pushContext });
     await persistAuth(res.user, res.tokens.accessToken, res.tokens.refreshToken);
+    return await resolveEffectiveRole(res.user);
   }, []);
 
   const refreshUser = useCallback((updatedUser: AuthUser) => {

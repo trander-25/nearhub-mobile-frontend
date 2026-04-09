@@ -13,13 +13,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BottomTabBar, EventCard } from '@/components/features';
 import { getMyEvents } from '@/services/userService';
-import { toggleLikeEvent, rsvpEvent } from '@/services/eventService';
+import { toggleLikeEvent } from '@/services/eventService';
 import { useAuth } from '@/contexts/AuthContext';
-import type { ApiEvent } from '@/types/event.types';
-import type { EventData } from '@/types/event.types';
+import type { ApiEvent, EventData } from '@/types/event.types';
 import { colors, fontWeights, spacing, typography } from '@/theme';
+import { isOrganizerRole } from '@/utils/role';
 
 type LikedEvent = ApiEvent & { isRsvped: boolean; isLiked: boolean };
+const DEFAULT_LAT = 10.7769;
+const DEFAULT_LNG = 106.7009;
+
+function toRad(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function calcDistanceKm(fromLat: number, fromLng: number, toLat: number, toLng: number): number {
+  const earthRadiusKm = 6371;
+  const dLat = toRad(toLat - fromLat);
+  const dLng = toRad(toLng - fromLng);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((earthRadiusKm * c).toFixed(2));
+}
 
 function toCardData(event: LikedEvent): EventData {
   const startDate = new Date(event.startAt);
@@ -44,6 +62,9 @@ function toCardData(event: LikedEvent): EventData {
     address: event.location.address,
     city: event.location.city ?? 'Location TBA',
     category: event.category,
+    distanceKm:
+      event.distanceKm ??
+      calcDistanceKm(DEFAULT_LAT, DEFAULT_LNG, event.location.lat, event.location.lng),
     startAt: event.startAt,
     endAt: event.endAt ?? undefined,
     totalViews: event.totalViews,
@@ -55,7 +76,7 @@ function toCardData(event: LikedEvent): EventData {
 export function SavedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
@@ -105,32 +126,15 @@ export function SavedScreen() {
     [isAuthenticated, router],
   );
 
-  const handleJoin = useCallback(
-    async (eventId: string) => {
-      if (!isAuthenticated) {
-        router.push('/login' as never);
-        return;
-      }
-
-      try {
-        await rsvpEvent(eventId);
-      } catch {
-        // may already be RSVP'd — that's fine
-      }
-      router.push(`/event/${eventId}` as never);
-    },
-    [isAuthenticated, router],
-  );
-
   const handleEventPress = useCallback((eventId: string) => {
     router.push(`/event/${eventId}`);
   }, [router]);
 
   const handleTabPress = useCallback((tab: string) => {
     if (tab === 'explore') router.replace('/');
-    else if (tab === 'myevents') router.replace('/myevents');
+    else if (tab === 'myevents') router.replace(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
     else if (tab === 'profile') router.push('/profile');
-  }, [router]);
+  }, [isAuthenticated, router, user?.role]);
 
   const visibleEvents = events.filter((e) => likedMap[e.id] !== false);
 
@@ -142,12 +146,12 @@ export function SavedScreen() {
       date={item.dateLabel}
       location={`${item.address}, ${item.city}`}
       category={item.category}
+      distanceKm={item.distanceKm}
       isLiked={likedMap[item.id] ?? true}
       onToggleLike={handleToggleLike}
-      onJoin={handleJoin}
       onPress={handleEventPress}
     />
-  ), [likedMap, handleToggleLike, handleJoin, handleEventPress]);
+  ), [likedMap, handleToggleLike, handleEventPress]);
 
   return (
     <View style={styles.screen}>
@@ -175,7 +179,7 @@ export function SavedScreen() {
               <Feather name="bookmark" size={48} color={colors.textPlaceholder} />
               <Text style={styles.emptyTitle}>No saved events</Text>
               <Text style={styles.emptySubtext}>
-                Tap the heart icon on events you like and they'll appear here
+                Tap the heart icon on events you like and they&apos;ll appear here
               </Text>
               <Pressable
                 style={styles.exploreBtn}

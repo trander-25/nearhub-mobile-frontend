@@ -39,9 +39,7 @@ export function EventCard({
   onPress,
 }: EventCardProps) {
   const distanceLabel = distanceKm != null
-    ? distanceKm < 1.6
-      ? `${(distanceKm * 0.621371).toFixed(1)} mi`
-      : `${(distanceKm * 0.621371).toFixed(1)} mi`
+    ? `${distanceKm.toFixed(1)} km`
     : null;
 
   function stopAndRun(e: GestureResponderEvent, fn?: () => void) {
@@ -54,14 +52,15 @@ export function EventCard({
       <View style={styles.imageWrap}>
         <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
 
-        {distanceLabel && (
-          <View style={styles.distanceBadge}>
-            <Text style={styles.distanceBadgeText}>{distanceLabel}</Text>
+        <View style={styles.badgeRow}>
+          {distanceLabel && (
+            <View style={styles.distanceBadge}>
+              <Text style={styles.distanceBadgeText}>{distanceLabel}</Text>
+            </View>
+          )}
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryBadgeText}>{category.toUpperCase()}</Text>
           </View>
-        )}
-
-        <View style={[styles.categoryBadge, distanceLabel ? { left: 80 } : { left: 16 }]}>
-          <Text style={styles.categoryBadgeText}>{category.toUpperCase()}</Text>
         </View>
 
         <Pressable
@@ -122,10 +121,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 214,
   },
-  distanceBadge: {
+  badgeRow: {
     position: 'absolute',
     top: 16,
     left: 16,
+    right: 64,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  distanceBadge: {
     backgroundColor: colors.distanceBadgeBg,
     borderRadius: 999,
     paddingHorizontal: 12,
@@ -139,12 +145,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.55,
   },
   categoryBadge: {
-    position: 'absolute',
-    top: 16,
     backgroundColor: colors.categoryBadgeBg,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 4,
+    maxWidth: '100%',
   },
   categoryBadgeText: {
     fontSize: typography.badge,

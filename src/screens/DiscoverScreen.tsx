@@ -35,6 +35,7 @@ import { getMyEvents } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors, spacing, typography, fontWeights } from '@/theme';
 import type { CategoryItem, EventData } from '@/types';
+import { isOrganizerRole } from '@/utils/role';
 
 const MANUAL_LOCATION_KEY = 'nearhub_manual_location';
 
@@ -50,7 +51,7 @@ const ALL_EVENTS_FILTER = 'All events';
 export function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -435,7 +436,7 @@ export function DiscoverScreen() {
       <BottomTabBar activeTab="explore" onTabPress={(tab) => {
         if (tab === 'explore') return;
         if (tab === 'saved') router.push('/saved');
-        else if (tab === 'myevents') router.push('/myevents');
+        else if (tab === 'myevents') router.push(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
         else if (tab === 'profile') router.push('/profile');
       }} />
 
@@ -476,7 +477,9 @@ export function DiscoverScreen() {
               style={styles.manualTrigger}
               onPress={() => {
                 setShowLocationPicker(false);
-                router.push('/manual-location' as never);
+                setTimeout(() => {
+                  router.push('/manual-location' as never);
+                }, 120);
               }}
             >
               <Text style={styles.manualTriggerText}>

@@ -13,6 +13,22 @@ import { apiRequest, buildQueryString } from './apiClient';
 const DEFAULT_LAT = 10.7769;
 const DEFAULT_LNG = 106.7009;
 
+function toRad(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function calcDistanceKm(fromLat: number, fromLng: number, toLat: number, toLng: number): number {
+  const earthRadiusKm = 6371;
+  const dLat = toRad(toLat - fromLat);
+  const dLng = toRad(toLng - fromLng);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((earthRadiusKm * c).toFixed(2));
+}
+
 function pickDefined<T extends Record<string, unknown>>(input?: Partial<T>): Partial<T> {
   if (!input) return {};
   return Object.fromEntries(
@@ -43,7 +59,11 @@ function toEventCardData(event: ApiEvent): EventData {
     address: event.location.address,
     city: event.location.city ?? 'Location TBA',
     category: event.category,
-    distanceKm: event.distanceKm,
+    lat: event.location.lat,
+    lng: event.location.lng,
+    distanceKm:
+      event.distanceKm ??
+      calcDistanceKm(DEFAULT_LAT, DEFAULT_LNG, event.location.lat, event.location.lng),
     startAt: event.startAt,
     endAt: event.endAt ?? undefined,
     totalViews: event.totalViews,

@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { isOrganizerRole } from '@/utils/role';
 
 export function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -47,11 +48,12 @@ export function RegisterScreen() {
     setError('');
     setIsSubmitting(true);
     try {
-      await signUp({
+      const signedUpUser = await signUp({
         email: email.trim(),
         password,
         displayName: displayName.trim() || undefined,
       });
+      router.replace(isOrganizerRole(signedUpUser.role) ? '/organizer-overview' : '/');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Đăng ký thất bại. Vui lòng thử lại.');
     } finally {

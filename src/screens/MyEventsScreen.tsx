@@ -14,16 +14,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { BottomTabBar } from '@/components/features';
-import { getMyEvents, type MyEventsResponse } from '@/services/userService';
+import { useAuth } from '@/contexts/AuthContext';
+import { getMyEvents } from '@/services/userService';
 import { cancelRsvp } from '@/services/eventService';
 import type { ApiEvent } from '@/types/event.types';
 import { colors, fontWeights, spacing, typography } from '@/theme';
+import { isOrganizerRole } from '@/utils/role';
 
 type RsvpEvent = ApiEvent & { isRsvped: boolean; isLiked: boolean };
 
 export function MyEventsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isAuthenticated, user } = useAuth();
 
   const [events, setEvents] = useState<RsvpEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +67,8 @@ export function MyEventsScreen() {
     if (tab === 'explore') router.replace('/');
     else if (tab === 'saved') router.replace('/saved');
     else if (tab === 'profile') router.push('/profile');
-  }, [router]);
+    else if (tab === 'myevents' && isAuthenticated && isOrganizerRole(user?.role)) router.replace('/organizer-overview');
+  }, [isAuthenticated, router, user?.role]);
 
   const renderItem: ListRenderItem<RsvpEvent> = useCallback(({ item }) => (
     <Pressable
@@ -144,7 +148,7 @@ export function MyEventsScreen() {
               <Feather name="calendar" size={48} color={colors.textPlaceholder} />
               <Text style={styles.emptyTitle}>No events yet</Text>
               <Text style={styles.emptySubtext}>
-                Join events from the Explore tab and they'll show up here
+                Join events from the Explore tab and they&apos;ll show up here
               </Text>
               <Pressable
                 style={styles.exploreBtn}

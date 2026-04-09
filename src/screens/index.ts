@@ -4,6 +4,8 @@ export * from './LoginScreen';
 export * from './RegisterScreen';
 export * from './ProfileScreen';
 export * from './MyEventsScreen';
+export * from './OrganizerScreen';
+export * from './AdminScreen';
 export * from './SavedScreen';
 export * from './NotificationsScreen';
 export * from './EditProfileScreen';

@@ -5,3 +5,4 @@ export * from './CategoryChips';
 export * from './FilterModal';
 export * from './BottomTabBar';
 export * from './WriteReviewModal';
+export * from './OpenStreetMapPicker';

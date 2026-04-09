@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { isOrganizerRole } from '@/utils/role';
 
 export function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -34,7 +35,8 @@ export function LoginScreen() {
     setError('');
     setIsSubmitting(true);
     try {
-      await signIn({ email: email.trim(), password });
+      const signedInUser = await signIn({ email: email.trim(), password });
+      router.replace(isOrganizerRole(signedInUser.role) ? '/organizer-overview' : '/');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {

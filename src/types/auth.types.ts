@@ -24,10 +24,14 @@ export interface AuthResponse {
 export interface LoginRequest {
   email: string;
   password: string;
+  deviceId?: string;
+  fcmToken?: string;
 }
 
 export interface RegisterRequest {
   email: string;
   password: string;
   displayName?: string;
+  deviceId?: string;
+  fcmToken?: string;
 }

@@ -5,6 +5,7 @@ import {
   Alert,
   Image,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { WebView } from 'react-native-webview';
 
 import { colors, spacing, typography, fontWeights } from '@/theme';
 import { WriteReviewModal } from '@/components/features';
@@ -28,8 +30,17 @@ import { getMyEvents } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import type { EventData, ReviewItem } from '@/types';
 
-const META_CARD_WIDTH = 280;
 const HERO_HEIGHT = 397;
+
+function resolveMapBounds(lat: number, lng: number): string {
+  const latDelta = 0.0008;
+  const lngDelta = 0.0008;
+  const left = (lng - lngDelta).toFixed(6);
+  const right = (lng + lngDelta).toFixed(6);
+  const top = (lat + latDelta).toFixed(6);
+  const bottom = (lat - latDelta).toFixed(6);
+  return `${left}%2C${bottom}%2C${right}%2C${top}`;
+}
 
 function formatRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -161,6 +172,10 @@ export function EventDetailScreen() {
 
   const handleDirections = useCallback(() => {
     if (!event) return;
+    if (typeof event.lat === 'number' && typeof event.lng === 'number') {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${event.lat},${event.lng}`);
+      return;
+    }
     const query = encodeURIComponent(`${event.address}, ${event.city}`);
     Linking.openURL(`https://maps.google.com/?q=${query}`);
   }, [event]);
@@ -187,6 +202,11 @@ export function EventDetailScreen() {
       </View>
     );
   }
+
+  const mapEmbedUrl =
+    typeof event.lat === 'number' && typeof event.lng === 'number'
+      ? `https://www.openstreetmap.org/export/embed.html?bbox=${resolveMapBounds(event.lat, event.lng)}&layer=mapnik&marker=${event.lat},${event.lng}`
+      : null;
 
   const descriptionText = event.description ?? '';
   const isLongDescription = descriptionText.length > 200;
@@ -237,64 +257,62 @@ export function EventDetailScreen() {
             </View>
           </View>
 
-          {/* --- Meta Cards Row (horizontal scroll) --- */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.metaCardsContainer}
-            style={styles.metaCardsScroll}
-          >
-            {/* Time Card */}
-            <View style={styles.metaCard}>
-              <View style={styles.metaCardTop}>
-                <View style={styles.metaIconBadge}>
-                  <Feather name="calendar" size={16} color={colors.primary} />
-                </View>
-                <View style={styles.metaCardInfo}>
-                  <Text style={styles.metaCardTitle}>{event.dateLabel}</Text>
-                  <Text style={styles.metaCardSub} numberOfLines={2}>
-                    {event.endAt
-                      ? `Ends ${new Date(event.endAt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-                      : 'Doors open early for check-in.'}
-                  </Text>
-                </View>
+          <View style={styles.infoSection}>
+            <Text style={styles.sectionHeading}>Event Time</Text>
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Feather name="calendar" size={16} color={colors.primary} />
+                <Text style={styles.infoPrimaryText}>{event.dateLabel}</Text>
               </View>
-              <Pressable style={styles.metaCardLink}>
-                <Text style={styles.metaCardLinkText}>Add to Calendar</Text>
-                <Feather name="chevron-right" size={12} color={colors.primary} />
+              <Text style={styles.infoSecondaryText}>
+                {event.endAt
+                  ? `Ends ${new Date(event.endAt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                  : 'Doors open early for check-in.'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoSection}>
+            <Text style={styles.sectionHeading}>Location</Text>
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Feather name="map-pin" size={16} color={colors.primary} />
+                <Text style={styles.infoPrimaryText} numberOfLines={1}>
+                  {event.address}
+                </Text>
+              </View>
+              <Text style={styles.infoSecondaryText}>{event.city}</Text>
+              <View style={styles.mapPreview}>
+                {mapEmbedUrl ? (
+                  <View style={styles.mapEmbedWrap}>
+                    <WebView
+                      source={{ uri: mapEmbedUrl }}
+                      style={styles.mapEmbed}
+                      scrollEnabled
+                      javaScriptEnabled
+                      domStorageEnabled
+                      nestedScrollEnabled
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.mapPlaceholder}>
+                    <Feather name="map" size={24} color={colors.textTertiary} />
+                  </View>
+                )}
+              </View>
+              <Pressable style={styles.mapActionButton} onPress={handleDirections}>
+                <Feather name="external-link" size={14} color={colors.primary} />
               </Pressable>
             </View>
+          </View>
 
-            {/* Location Card */}
-            <View style={styles.metaCard}>
-              <View style={styles.metaCardTop}>
-                <View style={[styles.metaIconBadge, styles.metaIconBadgeLocation]}>
-                  <Feather name="map-pin" size={16} color={colors.primary} />
-                </View>
-                <View style={styles.metaCardInfo}>
-                  <Text style={styles.metaCardTitle} numberOfLines={1}>
-                    {event.address.split(',')[0]}
-                  </Text>
-                  <Text style={styles.metaCardSub}>{event.city}</Text>
-                </View>
-              </View>
-              <Pressable style={styles.mapPreview} onPress={handleDirections}>
-                <View style={styles.mapPlaceholder}>
-                  <Feather name="map" size={24} color={colors.textTertiary} />
-                </View>
-                <View style={styles.directionsButton}>
-                  <Text style={styles.directionsText}>Directions</Text>
-                </View>
-              </Pressable>
-            </View>
-
-            {/* Price Card */}
-            <View style={[styles.metaCard, styles.priceCard]}>
-              <Text style={styles.priceLabel}>Ticket Price</Text>
+          <View style={styles.infoSection}>
+            <Text style={styles.sectionHeading}>Ticket Price</Text>
+            <View style={styles.infoCard}>
               <Text style={styles.priceValue}>Free</Text>
-              <Text style={styles.priceSub}>Open to all</Text>
+              <Text style={styles.infoSecondaryText}>Open to all</Text>
             </View>
-          </ScrollView>
+          </View>
 
           {/* --- About Section --- */}
           {descriptionText.length > 0 && (
@@ -554,69 +572,58 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  // ---- Meta Cards ----
-  metaCardsScroll: {
-    marginHorizontal: -spacing.xl,
+  // ---- Info Sections ----
+  infoSection: {
+    gap: spacing.sm,
   },
-  metaCardsContainer: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
-  },
-  metaCard: {
+  infoCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    padding: 20,
-    width: META_CARD_WIDTH,
-    height: 172,
-    justifyContent: 'space-between',
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
-  metaCardTop: {
+  infoRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'flex-start',
-  },
-  metaIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,61,155,0.08)',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.sm,
   },
-  metaIconBadgeLocation: {},
-  metaCardInfo: {
+  infoPrimaryText: {
     flex: 1,
-    gap: spacing.xs,
-  },
-  metaCardTitle: {
     fontSize: typography.bodySmall,
     fontWeight: fontWeights.bold,
     color: colors.textPrimary,
     lineHeight: 20,
   },
-  metaCardSub: {
+  infoSecondaryText: {
     fontSize: typography.caption,
     color: colors.textTertiary,
     lineHeight: 16,
   },
-  metaCardLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingTop: spacing.lg,
-  },
-  metaCardLinkText: {
-    fontSize: typography.caption,
-    fontWeight: fontWeights.semibold,
-    color: colors.primary,
-  },
   mapPreview: {
-    height: 80,
+    height: 240,
     borderRadius: 8,
     backgroundColor: colors.chipBg,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  mapActionButton: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.xs,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.chipBg,
+  },
+  mapEmbedWrap: {
+    width: '100%',
+    height: '100%',
+  },
+  mapEmbed: {
+    flex: 1,
+    opacity: Platform.OS === 'android' ? 0.95 : 1,
   },
   mapPlaceholder: {
     flex: 1,
@@ -624,45 +631,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     opacity: 0.6,
   },
-  directionsButton: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  directionsText: {
-    fontSize: 10,
-    fontWeight: fontWeights.semibold,
-    color: colors.textPrimary,
-  },
-  priceCard: {
-    width: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  priceLabel: {
-    fontSize: typography.caption,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
   priceValue: {
     fontSize: typography.title,
     fontWeight: fontWeights.extrabold,
     color: colors.primary,
-    textAlign: 'center',
-  },
-  priceSub: {
-    fontSize: 10,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
   },
 
   // ---- About Section ----

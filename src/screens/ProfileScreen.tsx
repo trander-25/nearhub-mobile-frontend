@@ -20,13 +20,16 @@ import { getMyEvents, getProfile, type MyEventsResponse } from '@/services/userS
 import type { AuthUser } from '@/types/auth.types';
 import type { ApiEvent } from '@/types/event.types';
 import { colors, fontWeights, spacing, typography } from '@/theme';
+import { isAdminRole, isOrganizerRole } from '@/utils/role';
 
 type EventTab = 'myevents' | 'saved';
 
 export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user: authUser, signOut } = useAuth();
+  const { user: authUser, signOut, isAuthenticated } = useAuth();
+  const isAdmin = isAuthenticated && isAdminRole(authUser?.role);
+  const isOrganizer = isAuthenticated && isOrganizerRole(authUser?.role);
 
   const [profile, setProfile] = useState<AuthUser | null>(null);
   const [eventsData, setEventsData] = useState<MyEventsResponse | null>(null);
@@ -67,10 +70,22 @@ export function ProfileScreen() {
   const visibleEvents = activeEventTab === 'myevents' ? rsvpEvents : likedEvents;
 
   const handleTabPress = useCallback((tab: string) => {
+    if (isAdmin) {
+      if (tab === 'admin-moderation') router.replace('/admin-moderation');
+      else if (tab === 'admin-users') router.replace('/admin-users');
+      else if (tab === 'admin-broadcast') router.replace('/admin-broadcast');
+      return;
+    }
+    if (isOrganizer) {
+      if (tab === 'organizer-overview') router.replace('/organizer-overview');
+      else if (tab === 'organizer-manage') router.replace('/organizer-manage');
+      else if (tab === 'organizer-notifications') router.replace('/organizer-notifications');
+      return;
+    }
     if (tab === 'explore') router.replace('/');
     else if (tab === 'saved') router.replace('/saved');
     else if (tab === 'myevents') router.replace('/myevents');
-  }, [router]);
+  }, [isAdmin, isOrganizer, router]);
 
   const handleSignOut = useCallback(() => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -103,7 +118,9 @@ export function ProfileScreen() {
             <Feather name="settings" size={18} color={colors.textPrimary} />
           </Pressable>
         </View>
-        <Text style={styles.headerSubtitle}>Manage your account and preferences</Text>
+        <Text style={styles.headerSubtitle}>
+          {isAdmin ? 'Admin account' : isOrganizer ? 'Organizer account' : 'Manage your account and preferences'}
+        </Text>
       </View>
 
       <ScrollView
@@ -133,91 +150,91 @@ export function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{rsvpEvents.length}</Text>
-            <Text style={styles.statLabel}>EVENTS</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{likedEvents.length}</Text>
-            <Text style={styles.statLabel}>SAVED</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>REVIEWS</Text>
-          </View>
-        </View>
-
-        {/* Interests Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Interests</Text>
-            <Pressable onPress={() => router.push('/edit-preferences' as never)}>
-              <Text style={styles.editLink}>Edit Preferences</Text>
-            </Pressable>
-          </View>
-          <View style={styles.chipRow}>
-            {(displayUser?.preferences ?? []).length > 0 ? (
-              displayUser!.preferences.map((pref) => (
-                <View key={pref} style={styles.chip}>
-                  <Text style={styles.chipText}>{pref}</Text>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.emptyText}>No interests selected yet</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Event Tabs */}
-        <View style={styles.section}>
-          <View style={styles.tabRow}>
-            <Pressable
-              style={[styles.tab, activeEventTab === 'myevents' && styles.tabActive]}
-              onPress={() => setActiveEventTab('myevents')}
-            >
-              <Text style={[styles.tabText, activeEventTab === 'myevents' && styles.tabTextActive]}>
-                My Events
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, activeEventTab === 'saved' && styles.tabActive]}
-              onPress={() => setActiveEventTab('saved')}
-            >
-              <Text style={[styles.tabText, activeEventTab === 'saved' && styles.tabTextActive]}>
-                Saved
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Event Cards */}
-          <View style={styles.eventList}>
-            {visibleEvents.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Feather
-                  name={activeEventTab === 'myevents' ? 'calendar' : 'bookmark'}
-                  size={32}
-                  color={colors.textPlaceholder}
-                />
-                <Text style={styles.emptyText}>
-                  {activeEventTab === 'myevents'
-                    ? 'No events yet'
-                    : 'No saved events yet'}
-                </Text>
+        {!isOrganizer && !isAdmin ? (
+          <>
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{rsvpEvents.length}</Text>
+                <Text style={styles.statLabel}>EVENTS</Text>
               </View>
-            ) : (
-              visibleEvents.map((event) => (
-                <EventMiniCard
-                  key={event.id}
-                  event={event}
-                  isRsvped={event.isRsvped}
-                  onPress={() => router.push(`/event/${event.id}`)}
-                />
-              ))
-            )}
-          </View>
-        </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{likedEvents.length}</Text>
+                <Text style={styles.statLabel}>SAVED</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>0</Text>
+                <Text style={styles.statLabel}>REVIEWS</Text>
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Interests</Text>
+                <Pressable onPress={() => router.push('/edit-preferences' as never)}>
+                  <Text style={styles.editLink}>Edit Preferences</Text>
+                </Pressable>
+              </View>
+              <View style={styles.chipRow}>
+                {(displayUser?.preferences ?? []).length > 0 ? (
+                  displayUser!.preferences.map((pref) => (
+                    <View key={pref} style={styles.chip}>
+                      <Text style={styles.chipText}>{pref}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>No interests selected yet</Text>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.tabRow}>
+                <Pressable
+                  style={[styles.tab, activeEventTab === 'myevents' && styles.tabActive]}
+                  onPress={() => setActiveEventTab('myevents')}
+                >
+                  <Text style={[styles.tabText, activeEventTab === 'myevents' && styles.tabTextActive]}>
+                    My Events
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.tab, activeEventTab === 'saved' && styles.tabActive]}
+                  onPress={() => setActiveEventTab('saved')}
+                >
+                  <Text style={[styles.tabText, activeEventTab === 'saved' && styles.tabTextActive]}>
+                    Saved
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.eventList}>
+                {visibleEvents.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Feather
+                      name={activeEventTab === 'myevents' ? 'calendar' : 'bookmark'}
+                      size={32}
+                      color={colors.textPlaceholder}
+                    />
+                    <Text style={styles.emptyText}>
+                      {activeEventTab === 'myevents'
+                        ? 'No events yet'
+                        : 'No saved events yet'}
+                    </Text>
+                  </View>
+                ) : (
+                  visibleEvents.map((event) => (
+                    <EventMiniCard
+                      key={event.id}
+                      event={event}
+                      isRsvped={event.isRsvped}
+                      onPress={() => router.push(`/event/${event.id}`)}
+                    />
+                  ))
+                )}
+              </View>
+            </View>
+          </>
+        ) : null}
       </ScrollView>
 
       <BottomTabBar activeTab="profile" onTabPress={handleTabPress} />
@@ -233,33 +250,37 @@ export function ProfileScreen() {
               </Pressable>
             </View>
 
-            <Pressable
-              style={styles.settingsItem}
-              onPress={() => {
-                setShowSettings(false);
-                router.push('/edit-profile' as never);
-              }}
-            >
-              <View style={styles.settingsItemLeft}>
-                <Feather name="user" size={17} color={colors.textPrimary} />
-                <Text style={styles.settingsItemText}>Edit profile</Text>
-              </View>
-              <Feather name="chevron-right" size={16} color={colors.textTertiary} />
-            </Pressable>
+            {!isOrganizer && !isAdmin ? (
+              <>
+                <Pressable
+                  style={styles.settingsItem}
+                  onPress={() => {
+                    setShowSettings(false);
+                    router.push('/edit-profile' as never);
+                  }}
+                >
+                  <View style={styles.settingsItemLeft}>
+                    <Feather name="user" size={17} color={colors.textPrimary} />
+                    <Text style={styles.settingsItemText}>Edit profile</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={colors.textTertiary} />
+                </Pressable>
 
-            <Pressable
-              style={styles.settingsItem}
-              onPress={() => {
-                setShowSettings(false);
-                router.push('/edit-preferences' as never);
-              }}
-            >
-              <View style={styles.settingsItemLeft}>
-                <Feather name="sliders" size={17} color={colors.textPrimary} />
-                <Text style={styles.settingsItemText}>Interests & preferences</Text>
-              </View>
-              <Feather name="chevron-right" size={16} color={colors.textTertiary} />
-            </Pressable>
+                <Pressable
+                  style={styles.settingsItem}
+                  onPress={() => {
+                    setShowSettings(false);
+                    router.push('/edit-preferences' as never);
+                  }}
+                >
+                  <View style={styles.settingsItemLeft}>
+                    <Feather name="sliders" size={17} color={colors.textPrimary} />
+                    <Text style={styles.settingsItemText}>Interests & preferences</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={colors.textTertiary} />
+                </Pressable>
+              </>
+            ) : null}
 
             <Pressable
               style={styles.settingsItem}

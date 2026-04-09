@@ -13,6 +13,8 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { BottomTabBar } from '@/components/features';
+import { useAuth } from '@/contexts/AuthContext';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import type { Notification } from '@/types/notification.types';
 import {
@@ -20,6 +22,7 @@ import {
   markNotificationAsRead,
   deleteNotification,
 } from '@/services/notificationService';
+import { isOrganizerRole } from '@/utils/role';
 
 const ICON_MAP: Record<string, keyof typeof Feather.glyphMap> = {
   system: 'info',
@@ -50,9 +53,15 @@ function formatRelativeTime(dateStr: string): string {
   });
 }
 
-export function NotificationsScreen() {
+interface NotificationsScreenProps {
+  organizerMode?: boolean;
+}
+
+export function NotificationsScreen({ organizerMode = false }: NotificationsScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
+  const isOrganizer = organizerMode && isOrganizerRole(user?.role);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -145,6 +154,12 @@ export function NotificationsScreen() {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+  const handleOrganizerTab = useCallback((tab: string) => {
+    if (tab === 'organizer-overview') router.replace('/organizer-overview');
+    else if (tab === 'organizer-manage') router.replace('/organizer-manage');
+    else if (tab === 'profile') router.replace('/profile');
+  }, [router]);
+
   const renderItem: ListRenderItem<Notification> = useCallback(
     ({ item }) => (
       <Pressable
@@ -183,18 +198,34 @@ export function NotificationsScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
-          <Feather name="arrow-left" size={20} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Thông báo</Text>
-        {unreadCount > 0 && (
-          <View style={styles.headerBadge}>
-            <Text style={styles.headerBadgeText}>{unreadCount}</Text>
+      {isOrganizer ? (
+        <View style={[styles.organizerHeader, { paddingTop: insets.top + spacing.lg }]}>
+          <View style={styles.organizerHeaderTopRow}>
+            <Text style={styles.organizerHeaderTitle}>Notifications</Text>
+            {unreadCount > 0 ? (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{unreadCount}</Text>
+              </View>
+            ) : (
+              <View style={styles.headerBadgePlaceholder} />
+            )}
           </View>
-        )}
-        <View style={{ flex: 1 }} />
-      </View>
+          <Text style={styles.organizerHeaderSubtitle}>Latest updates for your organizer account</Text>
+        </View>
+      ) : (
+        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+          <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
+            <Feather name="arrow-left" size={20} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Thông báo</Text>
+          {unreadCount > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{unreadCount}</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
+        </View>
+      )}
 
       <FlatList
         data={notifications}
@@ -229,6 +260,10 @@ export function NotificationsScreen() {
           ) : null
         }
       />
+
+      {isOrganizer ? (
+        <BottomTabBar activeTab="organizer-notifications" onTabPress={handleOrganizerTab} />
+      ) : null}
     </View>
   );
 }
@@ -253,6 +288,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  organizerHeader: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  organizerHeaderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  organizerHeaderTitle: {
+    fontSize: typography.hero,
+    fontWeight: fontWeights.extrabold,
+    color: colors.textPrimary,
+    letterSpacing: -0.9,
+    lineHeight: 40,
+  },
+  organizerHeaderSubtitle: {
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.medium,
+    color: colors.textTertiary,
+    marginTop: spacing.xs,
+  },
   headerTitle: {
     fontSize: typography.heading,
     fontWeight: fontWeights.bold,
@@ -266,6 +323,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerBadgePlaceholder: {
+    minWidth: 22,
+    height: 22,
   },
   headerBadgeText: {
     fontSize: typography.badge,

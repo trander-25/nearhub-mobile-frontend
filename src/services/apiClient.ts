@@ -31,6 +31,13 @@ interface RequestOptions {
   requireAuth?: boolean;
 }
 
+class ApiHttpError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ApiHttpError';
+  }
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, requireAuth = false } = options;
   let lastError: Error | null = null;
@@ -57,13 +64,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
+        throw new ApiHttpError(
           (errorData as { message?: string }).message || `Request failed with status ${response.status}`
         );
       }
 
       return (await response.json()) as T;
     } catch (error) {
+      if (error instanceof ApiHttpError) {
+        throw error;
+      }
       lastError = error instanceof Error ? error : new Error('Network error');
     }
   }

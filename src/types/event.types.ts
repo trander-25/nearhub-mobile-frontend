@@ -10,6 +10,8 @@ export interface EventData {
   distanceKm?: number;
   startAt?: string;
   endAt?: string;
+  lat?: number;
+  lng?: number;
   totalViews?: number;
   rating?: { average: number; total: number };
   isLiked?: boolean;

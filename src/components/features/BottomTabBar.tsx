@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography, fontWeights } from '@/theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdminRole, isOrganizerRole } from '@/utils/role';
 
 const TAB_ITEMS = [
   { key: 'explore', label: 'Explore', icon: 'compass' as const },
@@ -12,7 +14,19 @@ const TAB_ITEMS = [
   { key: 'profile', label: 'Profile', icon: 'user' as const },
 ] as const;
 
-type TabKey = (typeof TAB_ITEMS)[number]['key'];
+const ORGANIZER_TAB_ITEMS = [
+  { key: 'organizer-overview', label: 'Overview', icon: 'bar-chart-2' as const },
+  { key: 'organizer-manage', label: 'Manage', icon: 'briefcase' as const },
+  { key: 'organizer-notifications', label: 'Notify', icon: 'bell' as const },
+  { key: 'profile', label: 'Profile', icon: 'user' as const },
+] as const;
+
+const ADMIN_TAB_ITEMS = [
+  { key: 'admin-moderation', label: 'Moderation', icon: 'shield' as const },
+  { key: 'admin-users', label: 'Users', icon: 'users' as const },
+  { key: 'admin-broadcast', label: 'Broadcast', icon: 'send' as const },
+  { key: 'profile', label: 'Profile', icon: 'user' as const },
+] as const;
 
 interface BottomTabBarProps {
   activeTab: string;
@@ -21,10 +35,14 @@ interface BottomTabBarProps {
 
 export function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const isAdmin = isAdminRole(user?.role);
+  const isOrganizer = isOrganizerRole(user?.role);
+  const tabItems = isAdmin ? ADMIN_TAB_ITEMS : isOrganizer ? ORGANIZER_TAB_ITEMS : TAB_ITEMS;
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
-      {TAB_ITEMS.map((tab) => {
+      {tabItems.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
           <Pressable

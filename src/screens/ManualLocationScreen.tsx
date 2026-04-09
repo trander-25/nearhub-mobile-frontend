@@ -31,12 +31,18 @@ export function ManualLocationScreen() {
   const [debouncedCityQuery, setDebouncedCityQuery] = useState('');
 
   const canSave = countryInput.trim().length > 0 && cityInput.trim().length > 0;
-
   const allCountries = useMemo(() => Country.getAllCountries(), []);
   const citySource = useMemo(() => {
     if (!selectedCountryIso) return [];
-    return City.getCitiesOfCountry(selectedCountryIso);
+    return City.getCitiesOfCountry(selectedCountryIso) ?? [];
   }, [selectedCountryIso]);
+
+  useEffect(() => {
+    const matchedCountry = allCountries.find(
+      (item) => item.name.toLowerCase() === countryInput.trim().toLowerCase(),
+    );
+    setSelectedCountryIso(matchedCountry?.isoCode ?? '');
+  }, [allCountries, countryInput]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedCountryQuery(countryInput.trim().toLowerCase()), 120);
@@ -156,7 +162,7 @@ export function ManualLocationScreen() {
           placeholder="Search city"
           placeholderTextColor={colors.textPlaceholder}
           style={styles.input}
-          editable={Boolean(selectedCountryIso)}
+          editable
           autoCorrect={false}
           autoCapitalize="words"
         />
