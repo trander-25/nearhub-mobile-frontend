@@ -41,6 +41,7 @@ function AuthGate() {
         const nonAdminRoutes = new Set([
           'index',
           'saved',
+          'scan-qr',
           'myevents',
           'organizer',
           'organizer-overview',
@@ -69,7 +70,7 @@ function AuthGate() {
       }
 
       const homeRoute = isOrganizer ? organizerHome : defaultHome;
-      const userOnlyRoutes = new Set(['index', 'saved', 'myevents']);
+      const userOnlyRoutes = new Set(['index', 'saved', 'scan-qr', 'myevents']);
       const adminRoutes = new Set(['admin-moderation', 'admin-users', 'admin-broadcast']);
 
       if (isOnAuthScreen) {
@@ -100,16 +101,19 @@ function AuthGate() {
       <Stack.Screen name="register" />
       <Stack.Screen name="index" />
       <Stack.Screen name="saved" options={{ animation: 'none' }} />
+      <Stack.Screen name="scan-qr" options={{ animation: 'none' }} />
       <Stack.Screen name="myevents" options={{ animation: 'none' }} />
       <Stack.Screen name="organizer" options={{ animation: 'none' }} />
       <Stack.Screen name="organizer-overview" options={{ animation: 'none' }} />
       <Stack.Screen name="organizer-manage" options={{ animation: 'none' }} />
       <Stack.Screen name="organizer-notifications" options={{ animation: 'none' }} />
+      <Stack.Screen name="organizer/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="admin-moderation" options={{ animation: 'none' }} />
       <Stack.Screen name="admin-users" options={{ animation: 'none' }} />
       <Stack.Screen name="admin-broadcast" options={{ animation: 'none' }} />
       <Stack.Screen name="profile" options={{ animation: 'none' }} />
       <Stack.Screen name="event/[id]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="map" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="manual-location" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_right' }} />

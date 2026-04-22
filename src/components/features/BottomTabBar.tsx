@@ -1,5 +1,5 @@
 import React from 'react';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +10,7 @@ import { isAdminRole, isOrganizerRole } from '@/utils/role';
 const TAB_ITEMS = [
   { key: 'explore', label: 'Explore', icon: 'compass' as const },
   { key: 'saved', label: 'Saved', icon: 'bookmark' as const },
+  { key: 'scan-qr', label: '', icon: 'camera' as const },
   { key: 'myevents', label: 'My Events', icon: 'calendar' as const },
   { key: 'profile', label: 'Profile', icon: 'user' as const },
 ] as const;
@@ -44,25 +45,44 @@ export function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProps) {
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
       {tabItems.map((tab) => {
         const isActive = activeTab === tab.key;
+        const isCenterQrTab = tab.key === 'scan-qr';
         return (
           <Pressable
             key={tab.key}
-            style={[styles.tab, isActive && styles.tabActive]}
+            style={[
+              styles.tab,
+              isCenterQrTab && styles.centerQrTab,
+              isActive && !isCenterQrTab && styles.tabActive,
+              isActive && isCenterQrTab && styles.centerQrTabActive,
+            ]}
             onPress={() => onTabPress(tab.key)}
           >
-            <Feather
-              name={tab.icon}
-              size={20}
-              color={isActive ? '#FFFFFF' : colors.tabInactive}
-            />
-            <Text
-              style={[styles.tabLabel, isActive && styles.tabLabelActive]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
-            >
-              {tab.label}
-            </Text>
+            {isCenterQrTab ? (
+              <MaterialCommunityIcons
+                name="qrcode-scan"
+                size={22}
+                color="#FFFFFF"
+              />
+            ) : (
+              <Feather
+                name={tab.icon}
+                size={20}
+                color={isActive ? '#FFFFFF' : colors.tabInactive}
+              />
+            )}
+            {!isCenterQrTab ? (
+              <Text
+                style={[
+                  styles.tabLabel,
+                  isActive && styles.tabLabelActive,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {tab.label}
+              </Text>
+            ) : null}
           </Pressable>
         );
       })}
@@ -111,5 +131,23 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: '#FFFFFF',
+  },
+  centerQrTab: {
+    flex: 0,
+    width: 60,
+    height: 60,
+    marginTop: -26,
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    shadowColor: 'rgba(0,61,155,0.25)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  centerQrTabActive: {
+    backgroundColor: colors.primaryDark,
   },
 });

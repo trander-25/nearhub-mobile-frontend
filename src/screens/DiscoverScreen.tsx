@@ -436,6 +436,7 @@ export function DiscoverScreen() {
       <BottomTabBar activeTab="explore" onTabPress={(tab) => {
         if (tab === 'explore') return;
         if (tab === 'saved') router.push('/saved');
+        else if (tab === 'scan-qr') router.push('/scan-qr');
         else if (tab === 'myevents') router.push(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
         else if (tab === 'profile') router.push('/profile');
       }} />

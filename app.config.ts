@@ -9,16 +9,16 @@ const config: ExpoConfig = {
   slug: 'nearhub',
   version: '1.0.0',
   orientation: 'portrait',
-  icon: './assets/images/icon.png',
+  icon: './assets/images/nearhub-app-icon.png',
   scheme: 'nearhub',
   userInterfaceStyle: 'automatic',
   ios: {
-    icon: './assets/expo.icon',
+    icon: './assets/images/nearhub-app-icon.png',
   },
   android: {
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
-      foregroundImage: './assets/images/android-icon-foreground.png',
+      foregroundImage: './assets/images/nearhub-app-icon.png',
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },

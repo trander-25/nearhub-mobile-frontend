@@ -5,9 +5,11 @@ import {
   Alert,
   Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -16,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
+import * as ExpoLinking from 'expo-linking';
+import QRCode from 'react-native-qrcode-svg';
 
 import { colors, spacing, typography, fontWeights } from '@/theme';
 import { WriteReviewModal } from '@/components/features';
@@ -25,6 +29,7 @@ import {
   rsvpEvent,
   cancelRsvp,
   submitReview,
+  toggleFollowOrganizer,
 } from '@/services';
 import { getMyEvents } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -81,6 +86,10 @@ export function EventDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [isFollowingOrganizer, setIsFollowingOrganizer] = useState(false);
+  const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [showShareQrModal, setShowShareQrModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -94,6 +103,7 @@ export function EventDetailScreen() {
     try {
       const data = await getEventDetail(id!);
       setEvent(data.event);
+      setIsFollowingOrganizer(Boolean(data.isFollowingOrganizer));
       setReviews(data.reviews);
       setRating(data.rating);
       setError(null);
@@ -131,7 +141,7 @@ export function EventDetailScreen() {
       setIsLiked(res.liked);
     } catch (e) {
       setIsLiked((prev) => !prev);
-      Alert.alert('Không thể thả tim', e instanceof Error ? e.message : 'Vui lòng thử lại.');
+      Alert.alert('Unable to like', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setIsLikeSubmitting(false);
     }
@@ -155,7 +165,7 @@ export function EventDetailScreen() {
         setIsRsvped(true);
       }
     } catch (e) {
-      Alert.alert('Không thể tham gia', e instanceof Error ? e.message : 'Vui lòng thử lại.');
+      Alert.alert('Unable to RSVP', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setIsRsvpSubmitting(false);
     }
@@ -179,6 +189,51 @@ export function EventDetailScreen() {
     const query = encodeURIComponent(`${event.address}, ${event.city}`);
     Linking.openURL(`https://maps.google.com/?q=${query}`);
   }, [event]);
+
+  const handleOpenMapScreen = useCallback(() => {
+    if (!event) return;
+    const latParam = typeof event.lat === 'number' ? `&lat=${event.lat}` : '';
+    const lngParam = typeof event.lng === 'number' ? `&lng=${event.lng}` : '';
+    const cityParam = event.city ? `&city=${encodeURIComponent(event.city)}` : '';
+    router.push(`/map?eventId=${event.id}${latParam}${lngParam}${cityParam}` as never);
+  }, [event, router]);
+
+  const handleOpenOrganizerProfile = useCallback(() => {
+    if (!event?.organizer?.id) return;
+    router.push(`/organizer/${event.organizer.id}` as never);
+  }, [event?.organizer?.id, router]);
+
+  const handleToggleFollowOrganizer = useCallback(async () => {
+    if (!event?.organizer?.id) return;
+    if (!isAuthenticated) {
+      router.push('/login' as never);
+      return;
+    }
+    if (isFollowSubmitting) return;
+    setIsFollowSubmitting(true);
+    try {
+      const result = await toggleFollowOrganizer(event.organizer.id);
+      setIsFollowingOrganizer(result.following);
+    } catch (error) {
+      Alert.alert('Unable to follow organizer', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setIsFollowSubmitting(false);
+    }
+  }, [event?.organizer?.id, isAuthenticated, isFollowSubmitting, router]);
+
+  const shareLink = id ? ExpoLinking.createURL(`/event/${id}`) : '';
+
+  const handleShareLink = useCallback(async () => {
+    if (!shareLink) return;
+    try {
+      await Share.share({
+        message: `Check out this event on NearHub: ${shareLink}`,
+        url: shareLink,
+      });
+    } catch {
+      Alert.alert('Unable to share', 'Please try again.');
+    }
+  }, [shareLink]);
 
   // --- Loading state ---
   if (isLoading) {
@@ -238,21 +293,23 @@ export function EventDetailScreen() {
             <Text style={styles.eventTitle}>{event.title}</Text>
 
             <View style={styles.organizerRow}>
-              <View style={styles.organizerLeft}>
+              <Pressable style={styles.organizerLeft} onPress={handleOpenOrganizerProfile}>
                 <View style={styles.organizerAvatar}>
                   <Text style={styles.organizerAvatarText}>
-                    {event.address.charAt(0).toUpperCase()}
+                    {(event.organizer?.displayName ?? event.address).charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View>
                   <Text style={styles.organizerName} numberOfLines={1}>
-                    {event.address.split(',')[0]}
+                    {event.organizer?.displayName ?? event.address.split(',')[0]}
                   </Text>
                   <Text style={styles.organizerLabel}>Organizer</Text>
                 </View>
-              </View>
-              <Pressable style={styles.followButton}>
-                <Text style={styles.followButtonText}>Follow</Text>
+              </Pressable>
+              <Pressable style={styles.followButton} onPress={handleToggleFollowOrganizer}>
+                <Text style={styles.followButtonText}>
+                  {isFollowingOrganizer ? 'Following' : 'Follow'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -299,6 +356,7 @@ export function EventDetailScreen() {
                     <Feather name="map" size={24} color={colors.textTertiary} />
                   </View>
                 )}
+                <Pressable style={styles.mapTapOverlay} onPress={handleOpenMapScreen} />
               </View>
               <Pressable style={styles.mapActionButton} onPress={handleDirections}>
                 <Feather name="external-link" size={14} color={colors.primary} />
@@ -415,7 +473,7 @@ export function EventDetailScreen() {
           <Feather name="arrow-left" size={18} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.navRight}>
-          <Pressable style={styles.navButtonOutline}>
+          <Pressable style={styles.navButtonOutline} onPress={() => setShowShareOptions(true)}>
             <Feather name="share-2" size={16} color={colors.textPrimary} />
           </Pressable>
           <Pressable style={[styles.navButtonOutline, isLiked && styles.navButtonLiked]} onPress={handleToggleLike}>
@@ -459,6 +517,58 @@ export function EventDetailScreen() {
         onClose={() => setShowReviewModal(false)}
         onSubmit={handleSubmitReview}
       />
+
+      <Modal visible={showShareOptions} transparent animationType="fade" onRequestClose={() => setShowShareOptions(false)}>
+        <View style={styles.shareOverlay}>
+          <Pressable style={styles.shareBackdrop} onPress={() => setShowShareOptions(false)} />
+          <View style={[styles.shareSheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
+            <Text style={styles.shareTitle}>Share Event</Text>
+            <Pressable
+              style={styles.shareOption}
+              onPress={async () => {
+                setShowShareOptions(false);
+                await handleShareLink();
+              }}
+            >
+              <Feather name="link" size={16} color={colors.primary} />
+              <Text style={styles.shareOptionText}>Share link</Text>
+            </Pressable>
+            <Pressable
+              style={styles.shareOption}
+              onPress={() => {
+                setShowShareOptions(false);
+                setShowShareQrModal(true);
+              }}
+            >
+              <Feather name="maximize" size={16} color={colors.primary} />
+              <Text style={styles.shareOptionText}>Create QR code</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showShareQrModal} transparent animationType="slide" onRequestClose={() => setShowShareQrModal(false)}>
+        <View style={styles.shareOverlay}>
+          <Pressable style={styles.shareBackdrop} onPress={() => setShowShareQrModal(false)} />
+          <View style={[styles.shareSheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
+            <Text style={styles.shareTitle}>Event QR Code</Text>
+            <View style={styles.shareQrWrap}>
+              <QRCode value={shareLink || 'nearhub://event'} size={220} />
+            </View>
+            <Text numberOfLines={2} style={styles.shareLinkText}>
+              {shareLink}
+            </Text>
+            <Pressable
+              style={styles.sharePrimaryButton}
+              onPress={async () => {
+                await handleShareLink();
+              }}
+            >
+              <Text style={styles.sharePrimaryButtonText}>Share link</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -630,6 +740,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.6,
+  },
+  mapTapOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
   },
   priceValue: {
     fontSize: typography.title,
@@ -821,7 +935,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 1,
     shadowRadius: 30,
-    elevation: 8,
   },
   bottomPriceLabel: {
     fontSize: 10,
@@ -844,11 +957,75 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
     shadowRadius: 15,
-    elevation: 6,
   },
   joinNowText: {
     fontSize: typography.body,
     fontWeight: fontWeights.bold,
     color: '#FFFFFF',
+  },
+  shareOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  shareBackdrop: {
+    flex: 1,
+  },
+  shareSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    gap: spacing.md,
+    alignItems: 'center',
+  },
+  shareTitle: {
+    alignSelf: 'flex-start',
+    fontSize: typography.heading,
+    fontWeight: fontWeights.bold,
+    color: colors.textPrimary,
+  },
+  shareOption: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  shareOptionText: {
+    fontSize: typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: fontWeights.semibold,
+  },
+  shareQrWrap: {
+    width: 236,
+    height: 236,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareLinkText: {
+    width: '100%',
+    textAlign: 'center',
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+  },
+  sharePrimaryButton: {
+    width: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  sharePrimaryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: fontWeights.semibold,
+    fontSize: typography.bodySmall,
   },
 });

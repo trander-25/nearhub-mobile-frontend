@@ -16,6 +16,11 @@ export interface EventData {
   rating?: { average: number; total: number };
   isLiked?: boolean;
   isRsvped?: boolean;
+  organizer?: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+  } | null;
 }
 
 export interface ApiEvent {
@@ -35,6 +40,11 @@ export interface ApiEvent {
   distanceKm?: number;
   totalViews?: number;
   createdBy?: string;
+  organizer?: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+  } | null;
   status?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -69,6 +79,7 @@ export interface EventDetailResponse {
   event: ApiEvent;
   reviews: ReviewItem[];
   rating: { average: number; total: number };
+  isFollowingOrganizer?: boolean;
 }
 
 export interface NearbyQueryParams {

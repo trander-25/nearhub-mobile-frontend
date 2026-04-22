@@ -79,11 +79,11 @@ export function EditPreferencesScreen() {
         preferences: [...selected],
       });
       if (refreshUser) refreshUser(updated);
-      Alert.alert('Thành công', 'Sở thích đã được cập nhật.', [
+      Alert.alert('Success', 'Preferences updated.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (e) {
-      Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể cập nhật.');
+      Alert.alert('Error', e instanceof Error ? e.message : 'Unable to update.');
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +95,7 @@ export function EditPreferencesScreen() {
         <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={20} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Sở thích</Text>
+        <Text style={styles.headerTitle}>Preferences</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -104,7 +104,7 @@ export function EditPreferencesScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.subtitle}>
-          Chọn các chủ đề bạn quan tâm để nhận gợi ý sự kiện phù hợp
+          Select topics you care about to receive relevant event suggestions
         </Text>
 
         <View style={styles.grid}>
@@ -140,7 +140,7 @@ export function EditPreferencesScreen() {
       {/* Sticky save bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
         <Text style={styles.selectedCount}>
-          {selected.size} chủ đề đã chọn
+          {selected.size} topics selected
         </Text>
         <Pressable
           style={[styles.saveButton, (!hasChanges || isSubmitting) && styles.saveButtonDisabled]}
@@ -150,7 +150,7 @@ export function EditPreferencesScreen() {
           {isSubmitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={styles.saveButtonText}>Lưu</Text>
+            <Text style={styles.saveButtonText}>Save</Text>
           )}
         </Pressable>
       </View>

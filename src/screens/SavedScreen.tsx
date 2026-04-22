@@ -132,6 +132,7 @@ export function SavedScreen() {
 
   const handleTabPress = useCallback((tab: string) => {
     if (tab === 'explore') router.replace('/');
+    else if (tab === 'scan-qr') router.push('/scan-qr');
     else if (tab === 'myevents') router.replace(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
     else if (tab === 'profile') router.push('/profile');
   }, [isAuthenticated, router, user?.role]);

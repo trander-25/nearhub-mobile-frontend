@@ -11,3 +11,6 @@ export * from './NotificationsScreen';
 export * from './EditProfileScreen';
 export * from './EditPreferencesScreen';
 export * from './ManualLocationScreen';
+export * from './OrganizerProfileScreen';
+export * from './ScanQrScreen';
+export * from './MapEventsScreen';

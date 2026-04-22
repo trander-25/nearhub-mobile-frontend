@@ -13,6 +13,12 @@ export interface UpdateProfileInput {
   preferences?: string[];
 }
 
+export interface FollowingOrganizer {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
 export function getProfile(): Promise<AuthUser> {
   return apiRequest<AuthUser>('/user/profile', { requireAuth: true });
 }
@@ -27,4 +33,8 @@ export function updateProfile(data: UpdateProfileInput): Promise<AuthUser> {
 
 export function getMyEvents(): Promise<MyEventsResponse> {
   return apiRequest<MyEventsResponse>('/user/my-events', { requireAuth: true });
+}
+
+export function getFollowingOrganizers(): Promise<{ items: FollowingOrganizer[] }> {
+  return apiRequest<{ items: FollowingOrganizer[] }>('/user/following-organizers', { requireAuth: true });
 }

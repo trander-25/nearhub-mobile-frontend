@@ -67,6 +67,7 @@ function toEventCardData(event: ApiEvent): EventData {
     startAt: event.startAt,
     endAt: event.endAt ?? undefined,
     totalViews: event.totalViews,
+    organizer: event.organizer ?? null,
   };
 }
 
@@ -119,12 +120,18 @@ export async function getCategories(): Promise<CategoryItem[]> {
 
 export async function getEventDetail(
   eventId: string,
-): Promise<{ event: EventData; reviews: ReviewItem[]; rating: { average: number; total: number } }> {
+): Promise<{
+  event: EventData;
+  reviews: ReviewItem[];
+  rating: { average: number; total: number };
+  isFollowingOrganizer?: boolean;
+}> {
   const response = await apiRequest<EventDetailResponse>(`/events/${eventId}`);
   return {
     event: toEventCardData(response.event),
     reviews: response.reviews,
     rating: response.rating,
+    isFollowingOrganizer: response.isFollowingOrganizer,
   };
 }
 

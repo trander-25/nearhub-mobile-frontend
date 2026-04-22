@@ -16,7 +16,13 @@ import { useRouter } from 'expo-router';
 
 import { BottomTabBar } from '@/components/features';
 import { useAuth } from '@/contexts/AuthContext';
-import { getMyEvents, getProfile, type MyEventsResponse } from '@/services/userService';
+import {
+  getFollowingOrganizers,
+  getMyEvents,
+  getProfile,
+  type FollowingOrganizer,
+  type MyEventsResponse,
+} from '@/services/userService';
 import type { AuthUser } from '@/types/auth.types';
 import type { ApiEvent } from '@/types/event.types';
 import { colors, fontWeights, spacing, typography } from '@/theme';
@@ -33,35 +39,39 @@ export function ProfileScreen() {
 
   const [profile, setProfile] = useState<AuthUser | null>(null);
   const [eventsData, setEventsData] = useState<MyEventsResponse | null>(null);
+  const [followingOrganizers, setFollowingOrganizers] = useState<FollowingOrganizer[]>([]);
   const [activeEventTab, setActiveEventTab] = useState<EventTab>('myevents');
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+
+  const loadProfileData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [profileRes, eventsRes, followingRes] = await Promise.all([
+        getProfile(),
+        getMyEvents(),
+        getFollowingOrganizers(),
+      ]);
+      setProfile(profileRes);
+      setEventsData(eventsRes);
+      setFollowingOrganizers(followingRes.items ?? []);
+    } catch {
+      if (authUser) setProfile(authUser);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authUser]);
 
   useEffect(() => {
     loadProfileData();
-  }, []);
+  }, [loadProfileData]);
 
   useEffect(() => {
     if (authUser) {
       setProfile(authUser);
     }
   }, [authUser]);
-
-  async function loadProfileData() {
-    setIsLoading(true);
-    try {
-      const [profileRes, eventsRes] = await Promise.all([
-        getProfile(),
-        getMyEvents(),
-      ]);
-      setProfile(profileRes);
-      setEventsData(eventsRes);
-    } catch {
-      if (authUser) setProfile(authUser);
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   const displayUser = profile ?? authUser;
 
@@ -84,6 +94,7 @@ export function ProfileScreen() {
     }
     if (tab === 'explore') router.replace('/');
     else if (tab === 'saved') router.replace('/saved');
+    else if (tab === 'scan-qr') router.push('/scan-qr');
     else if (tab === 'myevents') router.replace('/myevents');
   }, [isAdmin, isOrganizer, router]);
 
@@ -118,9 +129,6 @@ export function ProfileScreen() {
             <Feather name="settings" size={18} color={colors.textPrimary} />
           </Pressable>
         </View>
-        <Text style={styles.headerSubtitle}>
-          {isAdmin ? 'Admin account' : isOrganizer ? 'Organizer account' : 'Manage your account and preferences'}
-        </Text>
       </View>
 
       <ScrollView
@@ -153,17 +161,29 @@ export function ProfileScreen() {
         {!isOrganizer && !isAdmin ? (
           <>
             <View style={styles.statsRow}>
+              <Pressable style={styles.statCard} onPress={() => setShowFollowingModal(true)}>
+                <Text style={styles.statNumber}>{followingOrganizers.length}</Text>
+                <Text style={styles.statLabel} numberOfLines={1}>
+                  FOLLOWING
+                </Text>
+              </Pressable>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{rsvpEvents.length}</Text>
-                <Text style={styles.statLabel}>EVENTS</Text>
+                <Text style={styles.statLabel} numberOfLines={1}>
+                  EVENTS
+                </Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{likedEvents.length}</Text>
-                <Text style={styles.statLabel}>SAVED</Text>
+                <Text style={styles.statLabel} numberOfLines={1}>
+                  SAVED
+                </Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>0</Text>
-                <Text style={styles.statLabel}>REVIEWS</Text>
+                <Text style={styles.statLabel} numberOfLines={1}>
+                  REVIEWS
+                </Text>
               </View>
             </View>
 
@@ -302,6 +322,56 @@ export function ProfileScreen() {
                 <Text style={styles.settingsLogoutText}>Logout</Text>
               </View>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showFollowingModal} transparent animationType="slide" onRequestClose={() => setShowFollowingModal(false)}>
+        <View style={styles.settingsOverlay}>
+          <Pressable style={styles.settingsBackdrop} onPress={() => setShowFollowingModal(false)} />
+          <View style={[styles.settingsSheet, { paddingBottom: insets.bottom + spacing.xl }]}>
+            <View style={styles.settingsHeader}>
+              <Text style={styles.settingsTitle}>Following Organizers</Text>
+              <Pressable onPress={() => setShowFollowingModal(false)} hitSlop={10}>
+                <Feather name="x" size={22} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {followingOrganizers.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Feather name="users" size={28} color={colors.textPlaceholder} />
+                  <Text style={styles.emptyText}>You are not following any organizer yet.</Text>
+                </View>
+              ) : (
+                followingOrganizers.map((organizer) => (
+                  <Pressable
+                    key={organizer.id}
+                    style={styles.organizerRow}
+                    onPress={() => {
+                      setShowFollowingModal(false);
+                      router.push(`/organizer/${organizer.id}`);
+                    }}
+                  >
+                    <View style={styles.organizerLeft}>
+                      {organizer.avatarUrl ? (
+                        <Image source={{ uri: organizer.avatarUrl }} style={styles.organizerAvatar} />
+                      ) : (
+                        <View style={[styles.organizerAvatar, styles.organizerAvatarPlaceholder]}>
+                          <Text style={styles.organizerAvatarText}>
+                            {organizer.displayName.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={styles.organizerName} numberOfLines={1}>
+                        {organizer.displayName}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={colors.textTertiary} />
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -470,14 +540,15 @@ const styles = StyleSheet.create({
   // Stats
   statsRow: {
     flexDirection: 'row',
-    gap: spacing.lg,
+    gap: spacing.sm,
     marginBottom: 40,
   },
   statCard: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 24,
-    padding: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
     gap: 4,
   },
@@ -488,11 +559,12 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   statLabel: {
-    fontSize: typography.badge,
+    fontSize: 10,
     fontWeight: fontWeights.semibold,
     color: 'rgba(67,70,84,0.7)',
-    letterSpacing: 1.1,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
 
   // Sections
@@ -680,5 +752,44 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySmall,
     fontWeight: fontWeights.semibold,
     color: colors.danger,
+  },
+  organizerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
+    marginBottom: spacing.sm,
+  },
+  organizerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  organizerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  organizerAvatarPlaceholder: {
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  organizerAvatarText: {
+    color: '#FFFFFF',
+    fontSize: typography.caption,
+    fontWeight: fontWeights.bold,
+  },
+  organizerName: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.medium,
   },
 });

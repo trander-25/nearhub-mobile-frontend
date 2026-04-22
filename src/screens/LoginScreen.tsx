@@ -38,7 +38,7 @@ export function LoginScreen() {
       const signedInUser = await signIn({ email: email.trim(), password });
       router.replace(isOrganizerRole(signedInUser.role) ? '/organizer-overview' : '/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
+      setError(e instanceof Error ? e.message : 'Login failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -58,11 +58,11 @@ export function LoginScreen() {
             <Feather name="map-pin" size={36} color={colors.surface} />
           </View>
           <Text style={styles.appName}>NearHub</Text>
-          <Text style={styles.subtitle}>Khám phá sự kiện quanh bạn</Text>
+          <Text style={styles.subtitle}>Discover events near you</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Đăng nhập</Text>
+          <Text style={styles.formTitle}>Sign In</Text>
 
           {error ? (
             <View style={styles.errorBanner}>
@@ -90,12 +90,12 @@ export function LoginScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mật khẩu</Text>
+            <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
               <Feather name="lock" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, styles.passwordInput]}
-                placeholder="Tối thiểu 8 ký tự"
+                placeholder="Minimum 8 characters"
                 placeholderTextColor={colors.textPlaceholder}
                 value={password}
                 onChangeText={setPassword}
@@ -118,15 +118,15 @@ export function LoginScreen() {
             {isSubmitting ? (
               <ActivityIndicator color={colors.surface} />
             ) : (
-              <Text style={styles.buttonText}>Đăng nhập</Text>
+              <Text style={styles.buttonText}>Sign In</Text>
             )}
           </Pressable>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Chưa có tài khoản? </Text>
+          <Text style={styles.footerText}>Don't have an account? </Text>
           <Pressable onPress={() => router.replace('/register')}>
-            <Text style={styles.footerLink}>Đăng ký ngay</Text>
+            <Text style={styles.footerLink}>Register now</Text>
           </Pressable>
         </View>
       </ScrollView>

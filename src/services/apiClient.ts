@@ -49,7 +49,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   if (requireAuth) {
     if (!authToken) {
-      throw new Error('Bạn cần đăng nhập để thực hiện thao tác này.');
+      throw new Error('You must be signed in to perform this action.');
     }
     headers['Authorization'] = `Bearer ${authToken}`;
   }

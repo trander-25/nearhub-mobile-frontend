@@ -41,13 +41,13 @@ function formatRelativeTime(dateStr: string): string {
   const then = new Date(dateStr).getTime();
   const diffMs = now - then;
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'Vừa xong';
-  if (diffMin < 60) return `${diffMin} phút trước`;
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} minutes ago`;
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} giờ trước`;
+  if (diffHr < 24) return `${diffHr} hours ago`;
   const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay} ngày trước`;
-  return new Date(dateStr).toLocaleDateString('vi-VN', {
+  if (diffDay < 7) return `${diffDay} days ago`;
+  return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
   });
@@ -135,10 +135,10 @@ export function NotificationsScreen({ organizerMode = false }: NotificationsScre
   );
 
   const handleDelete = useCallback((item: Notification) => {
-    Alert.alert('Xoá thông báo', 'Bạn có chắc muốn xoá thông báo này?', [
-      { text: 'Huỷ', style: 'cancel' },
+    Alert.alert('Delete notification', 'Are you sure you want to delete this notification?', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Xoá',
+        text: 'Delete',
         style: 'destructive',
         onPress: async () => {
           setNotifications((prev) => prev.filter((n) => n.id !== item.id));
@@ -217,7 +217,7 @@ export function NotificationsScreen({ organizerMode = false }: NotificationsScre
           <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
             <Feather name="arrow-left" size={20} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Thông báo</Text>
+          <Text style={styles.headerTitle}>Notifications</Text>
           {unreadCount > 0 && (
             <View style={styles.headerBadge}>
               <Text style={styles.headerBadgeText}>{unreadCount}</Text>
@@ -247,9 +247,9 @@ export function NotificationsScreen({ organizerMode = false }: NotificationsScre
               <View style={styles.emptyIcon}>
                 <Feather name="bell-off" size={48} color={colors.textPlaceholder} />
               </View>
-              <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
+              <Text style={styles.emptyTitle}>No notifications yet</Text>
               <Text style={styles.emptySubtext}>
-                Các thông báo về sự kiện và hệ thống sẽ xuất hiện ở đây
+                Event and system notifications will appear here
               </Text>
             </View>
           )

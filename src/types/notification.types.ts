@@ -3,7 +3,7 @@ export interface Notification {
   userId: string;
   title: string;
   body: string;
-  type: 'system' | 'event' | 'admin';
+  type: 'system' | 'event' | 'admin' | 'organizer';
   eventId: string | null;
   metadata: Record<string, unknown> | null;
   isRead: boolean;

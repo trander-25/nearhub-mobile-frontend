@@ -41,7 +41,7 @@ export function RegisterScreen() {
     if (!isFormValid || isSubmitting) return;
 
     if (!passwordsMatch) {
-      setError('Mật khẩu xác nhận không khớp.');
+      setError('Password confirmation does not match.');
       return;
     }
 
@@ -55,7 +55,7 @@ export function RegisterScreen() {
       });
       router.replace(isOrganizerRole(signedUpUser.role) ? '/organizer-overview' : '/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Đăng ký thất bại. Vui lòng thử lại.');
+      setError(e instanceof Error ? e.message : 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -75,11 +75,11 @@ export function RegisterScreen() {
             <Feather name="map-pin" size={36} color={colors.surface} />
           </View>
           <Text style={styles.appName}>NearHub</Text>
-          <Text style={styles.subtitle}>Tạo tài khoản để bắt đầu</Text>
+          <Text style={styles.subtitle}>Create an account to get started</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Đăng ký</Text>
+          <Text style={styles.formTitle}>Sign Up</Text>
 
           {error ? (
             <View style={styles.errorBanner}>
@@ -89,12 +89,12 @@ export function RegisterScreen() {
           ) : null}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tên hiển thị <Text style={styles.optional}>(tuỳ chọn)</Text></Text>
+            <Text style={styles.label}>Display name <Text style={styles.optional}>(optional)</Text></Text>
             <View style={styles.inputWrapper}>
               <Feather name="user" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Tên của bạn"
+                placeholder="Your name"
                 placeholderTextColor={colors.textPlaceholder}
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -124,12 +124,12 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mật khẩu</Text>
+            <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
               <Feather name="lock" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, styles.passwordInput]}
-                placeholder="Tối thiểu 8 ký tự"
+                placeholder="Minimum 8 characters"
                 placeholderTextColor={colors.textPlaceholder}
                 value={password}
                 onChangeText={setPassword}
@@ -144,7 +144,7 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Xác nhận mật khẩu</Text>
+            <Text style={styles.label}>Confirm Password</Text>
             <View style={[
               styles.inputWrapper,
               confirmPassword.length > 0 && !passwordsMatch && styles.inputError,
@@ -152,7 +152,7 @@ export function RegisterScreen() {
               <Feather name="lock" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Nhập lại mật khẩu"
+                placeholder="Confirm your password"
                 placeholderTextColor={colors.textPlaceholder}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -162,7 +162,7 @@ export function RegisterScreen() {
               />
             </View>
             {confirmPassword.length > 0 && !passwordsMatch && (
-              <Text style={styles.fieldError}>Mật khẩu không khớp</Text>
+              <Text style={styles.fieldError}>Passwords do not match</Text>
             )}
           </View>
 
@@ -174,15 +174,15 @@ export function RegisterScreen() {
             {isSubmitting ? (
               <ActivityIndicator color={colors.surface} />
             ) : (
-              <Text style={styles.buttonText}>Tạo tài khoản</Text>
+              <Text style={styles.buttonText}>Create Account</Text>
             )}
           </Pressable>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Đã có tài khoản? </Text>
+          <Text style={styles.footerText}>Already have an account? </Text>
           <Pressable onPress={() => router.replace('/login')}>
-            <Text style={styles.footerLink}>Đăng nhập</Text>
+            <Text style={styles.footerLink}>Sign In</Text>
           </Pressable>
         </View>
       </ScrollView>

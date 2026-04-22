@@ -45,11 +45,11 @@ export function EditProfileScreen() {
         avatarUrl: avatarUrl.trim() || null,
       });
       if (refreshUser) refreshUser(updated);
-      Alert.alert('Thành công', 'Hồ sơ đã được cập nhật.', [
+      Alert.alert('Success', 'Profile updated.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Không thể cập nhật hồ sơ.');
+      setError(e instanceof Error ? e.message : 'Unable to update profile.');
     } finally {
       setIsSubmitting(false);
     }
@@ -64,7 +64,7 @@ export function EditProfileScreen() {
         <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
           <Feather name="arrow-left" size={20} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ</Text>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -92,12 +92,12 @@ export function EditProfileScreen() {
 
         {/* Display Name */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Tên hiển thị</Text>
+          <Text style={styles.label}>Display Name</Text>
           <View style={styles.inputWrapper}>
             <Feather name="user" size={18} color={colors.textTertiary} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Nhập tên của bạn"
+              placeholder="Enter your name"
               placeholderTextColor={colors.textPlaceholder}
               value={displayName}
               onChangeText={setDisplayName}
@@ -109,7 +109,7 @@ export function EditProfileScreen() {
 
         {/* Avatar URL */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>URL ảnh đại diện</Text>
+          <Text style={styles.label}>Avatar URL</Text>
           <View style={styles.inputWrapper}>
             <Feather name="image" size={18} color={colors.textTertiary} style={styles.inputIcon} />
             <TextInput
@@ -123,7 +123,7 @@ export function EditProfileScreen() {
               returnKeyType="done"
             />
           </View>
-          <Text style={styles.hint}>Dán đường dẫn hình ảnh từ web</Text>
+          <Text style={styles.hint}>Paste an image URL from the web</Text>
         </View>
 
         {/* Save button */}
@@ -135,7 +135,7 @@ export function EditProfileScreen() {
           {isSubmitting ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.saveButtonText}>Lưu thay đổi</Text>
+            <Text style={styles.saveButtonText}>Save changes</Text>
           )}
         </Pressable>
       </ScrollView>

@@ -32,3 +32,18 @@ export interface EventAttendeesResponse {
   event: ApiEvent;
   attendees: OrganizerAttendee[];
 }
+
+export interface OrganizerProfileResponse {
+  organizer: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+    followers: number;
+  };
+  rating: {
+    average: number;
+    total: number;
+  };
+  events: ApiEvent[];
+  isFollowing: boolean;
+}

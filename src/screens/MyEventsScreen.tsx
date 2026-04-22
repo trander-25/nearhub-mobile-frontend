@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -22,6 +24,7 @@ import { colors, fontWeights, spacing, typography } from '@/theme';
 import { isOrganizerRole } from '@/utils/role';
 
 type RsvpEvent = ApiEvent & { isRsvped: boolean; isLiked: boolean };
+type EventsByDateMap = Record<string, RsvpEvent[]>;
 
 export function MyEventsScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +34,12 @@ export function MyEventsScreen() {
   const [events, setEvents] = useState<RsvpEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [calendarMonthDate, setCalendarMonthDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
+  const [showDateEventsModal, setShowDateEventsModal] = useState(false);
 
   const loadEvents = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -66,9 +75,33 @@ export function MyEventsScreen() {
   const handleTabPress = useCallback((tab: string) => {
     if (tab === 'explore') router.replace('/');
     else if (tab === 'saved') router.replace('/saved');
+    else if (tab === 'scan-qr') router.push('/scan-qr');
     else if (tab === 'profile') router.push('/profile');
     else if (tab === 'myevents' && isAuthenticated && isOrganizerRole(user?.role)) router.replace('/organizer-overview');
   }, [isAuthenticated, router, user?.role]);
+
+  const nowTs = Date.now();
+  const sortedEvents = [...events].sort(
+    (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+  );
+  const eventsByDate = sortedEvents.reduce<EventsByDateMap>((acc, event) => {
+    const dateKey = toDateKey(new Date(event.startAt));
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(event);
+    return acc;
+  }, {});
+  const selectedDateEvents = eventsByDate[selectedDateKey] ?? [];
+  const upcomingEvents = sortedEvents.filter((event) => new Date(event.startAt).getTime() >= nowTs);
+  const calendarDays = buildCalendarDays(calendarMonthDate);
+  const monthTitle = calendarMonthDate.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+  const selectedDateLabel = new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
 
   const renderItem: ListRenderItem<RsvpEvent> = useCallback(({ item }) => (
     <Pressable
@@ -128,16 +161,89 @@ export function MyEventsScreen() {
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
         <Text style={styles.headerTitle}>My Events</Text>
-        <Text style={styles.headerCount}>{events.length} event{events.length !== 1 ? 's' : ''}</Text>
       </View>
 
       <FlatList
-        data={events}
+        data={upcomingEvents}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
         refreshing={isRefreshing}
         onRefresh={handleRefresh}
+        ListHeaderComponent={
+          <View style={styles.headerContent}>
+            <View style={styles.calendarCard}>
+              <View style={styles.calendarHeader}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() =>
+                    setCalendarMonthDate(
+                      (current) => new Date(current.getFullYear(), current.getMonth() - 1, 1)
+                    )
+                  }
+                >
+                  <Feather name="chevron-left" size={18} color={colors.textPrimary} />
+                </Pressable>
+                <Text style={styles.calendarMonthText}>{monthTitle}</Text>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() =>
+                    setCalendarMonthDate(
+                      (current) => new Date(current.getFullYear(), current.getMonth() + 1, 1)
+                    )
+                  }
+                >
+                  <Feather name="chevron-right" size={18} color={colors.textPrimary} />
+                </Pressable>
+              </View>
+
+              <View style={styles.calendarWeekDaysRow}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  <Text key={day} style={styles.calendarWeekDayText}>
+                    {day}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.calendarGrid}>
+                {calendarDays.map((day) => {
+                  const hasEvents = Boolean(eventsByDate[day.dateKey]?.length);
+                  const isSelected = day.dateKey === selectedDateKey;
+                  return (
+                    <Pressable
+                      key={`${day.dateKey}-${day.isCurrentMonth ? 'current' : 'other'}`}
+                      style={[styles.calendarDayCell, isSelected && styles.calendarDayCellSelected]}
+                      onPress={() => {
+                        setSelectedDateKey(day.dateKey);
+                        setShowDateEventsModal(true);
+                        if (!day.isCurrentMonth) {
+                          setCalendarMonthDate(new Date(day.year, day.month, 1));
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.calendarDayText,
+                          !day.isCurrentMonth && styles.calendarDayTextOutsideMonth,
+                          isSelected && styles.calendarDayTextSelected,
+                        ]}
+                      >
+                        {day.day}
+                      </Text>
+                      {hasEvents ? (
+                        <View style={[styles.calendarDayDot, isSelected && styles.calendarDayDotSelected]} />
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.upcomingHeader}>
+              <Text style={styles.sectionTitle}>Upcoming events</Text>
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.centered}>
@@ -162,6 +268,59 @@ export function MyEventsScreen() {
       />
 
       <BottomTabBar activeTab="myevents" onTabPress={handleTabPress} />
+
+      <Modal
+        visible={showDateEventsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDateEventsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowDateEventsModal(false)} />
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.xl }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.sectionTitle}>{selectedDateLabel}</Text>
+              <Pressable onPress={() => setShowDateEventsModal(false)} hitSlop={10}>
+                <Feather name="x" size={22} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {selectedDateEvents.length === 0 ? (
+                <Text style={styles.selectedDateEmptyText}>No events on this day</Text>
+              ) : (
+                selectedDateEvents.map((item) => (
+                  <View key={`selected-${item.id}`} style={styles.selectedItemRow}>
+                    <Pressable
+                      style={styles.selectedItemContent}
+                      onPress={() => {
+                        setShowDateEventsModal(false);
+                        router.push(`/event/${item.id}`);
+                      }}
+                    >
+                      <Text style={styles.selectedItemTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.selectedItemMeta} numberOfLines={1}>
+                        {new Date(item.startAt).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                        {item.location?.city ? ` • ${item.location.city}` : ''}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.cancelBtn}
+                      onPress={() => handleCancelRsvp(item.id)}
+                      hitSlop={8}
+                    >
+                      <Feather name="x" size={16} color={colors.textTertiary} />
+                    </Pressable>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -191,9 +350,137 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.xl,
   },
+  headerContent: {
+    gap: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
   centered: {
     paddingTop: 80,
     alignItems: 'center',
+  },
+  calendarCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calendarMonthText: {
+    fontSize: typography.body,
+    fontWeight: fontWeights.semibold,
+    color: colors.textPrimary,
+  },
+  calendarWeekDaysRow: {
+    flexDirection: 'row',
+  },
+  calendarWeekDayText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: typography.caption,
+    color: colors.textTertiary,
+    fontWeight: fontWeights.medium,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: spacing.sm,
+  },
+  calendarDayCell: {
+    width: '14.285%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+    borderRadius: 10,
+    minHeight: 38,
+    gap: 2,
+  },
+  calendarDayCellSelected: {
+    backgroundColor: colors.primary,
+  },
+  calendarDayText: {
+    fontSize: typography.caption,
+    color: colors.textPrimary,
+    fontWeight: fontWeights.medium,
+  },
+  calendarDayTextOutsideMonth: {
+    color: colors.textPlaceholder,
+  },
+  calendarDayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: fontWeights.semibold,
+  },
+  calendarDayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+  },
+  calendarDayDotSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  sectionTitle: {
+    fontSize: typography.body,
+    fontWeight: fontWeights.semibold,
+    color: colors.textPrimary,
+  },
+  selectedDateEmptyText: {
+    fontSize: typography.bodySmall,
+    color: colors.textTertiary,
+    marginTop: spacing.sm,
+  },
+  selectedItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
+  },
+  selectedItemContent: {
+    flex: 1,
+    gap: 2,
+  },
+  selectedItemTitle: {
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.semibold,
+    color: colors.textPrimary,
+  },
+  selectedItemMeta: {
+    fontSize: typography.caption,
+    color: colors.textSecondary,
+  },
+  upcomingHeader: {
+    marginTop: spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    maxHeight: '75%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
 
   // Event Card
@@ -310,3 +597,64 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function buildCalendarDays(monthDate: Date) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const days: {
+    year: number;
+    month: number;
+    day: number;
+    dateKey: string;
+    isCurrentMonth: boolean;
+  }[] = [];
+
+  for (let i = startWeekday - 1; i >= 0; i -= 1) {
+    const day = daysInPrevMonth - i;
+    const date = new Date(year, month - 1, day);
+    days.push({
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      day,
+      dateKey: toDateKey(date),
+      isCurrentMonth: false,
+    });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(year, month, day);
+    days.push({
+      year,
+      month,
+      day,
+      dateKey: toDateKey(date),
+      isCurrentMonth: true,
+    });
+  }
+
+  while (days.length % 7 !== 0 || days.length < 42) {
+    const day = days.length - (startWeekday + daysInMonth) + 1;
+    const date = new Date(year, month + 1, day);
+    days.push({
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      day,
+      dateKey: toDateKey(date),
+      isCurrentMonth: false,
+    });
+  }
+
+  return days;
+}

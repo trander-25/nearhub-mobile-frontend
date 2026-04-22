@@ -1,5 +1,11 @@
 import { apiRequest } from './apiClient';
-import type { ApiEvent, EventAttendeesResponse, EventInputPayload, OrganizerStats } from '@/types';
+import type {
+  ApiEvent,
+  EventAttendeesResponse,
+  EventInputPayload,
+  OrganizerProfileResponse,
+  OrganizerStats,
+} from '@/types';
 
 export async function getOrganizerEvents(): Promise<ApiEvent[]> {
   return apiRequest<ApiEvent[]>('/organizer/events', {
@@ -41,6 +47,22 @@ export async function getOrganizerEventAttendees(eventId: string): Promise<Event
 export async function getOrganizerStats(): Promise<OrganizerStats> {
   return apiRequest<OrganizerStats>('/organizer/stats', {
     method: 'GET',
+    requireAuth: true,
+  });
+}
+
+export async function getOrganizerProfile(organizerId: string): Promise<OrganizerProfileResponse> {
+  return apiRequest<OrganizerProfileResponse>(`/organizer/${organizerId}/profile`, {
+    method: 'GET',
+    requireAuth: true,
+  });
+}
+
+export async function toggleFollowOrganizer(
+  organizerId: string,
+): Promise<{ following: boolean; followers: number }> {
+  return apiRequest<{ following: boolean; followers: number }>(`/organizer/${organizerId}/follow`, {
+    method: 'POST',
     requireAuth: true,
   });
 }
