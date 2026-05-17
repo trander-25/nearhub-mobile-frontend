@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
-  Modal,
   Pressable,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -61,6 +61,16 @@ export function FilterModal({
     sortBy: initialSortBy,
     radius: initialRadius?.toString() ?? '',
   });
+
+  useEffect(() => {
+    if (!visible) return;
+    setFilters({
+      categories: initialCategories,
+      city: initialCity,
+      sortBy: initialSortBy,
+      radius: initialRadius?.toString() ?? '',
+    });
+  }, [initialCategories, initialCity, initialRadius, initialSortBy, visible]);
 
   const handleApply = () => {
     onApply({
@@ -167,7 +177,7 @@ export function FilterModal({
             </Pressable>
             <Pressable onPress={handleApply} style={styles.applyButtonWrap}>
               <LinearGradient
-                colors={['#003D9B', '#0052CC']}
+                colors={colors.primaryGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.applyButton}

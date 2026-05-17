@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   Pressable,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +15,7 @@ import * as SecureStore from 'expo-secure-store';
 import { City, Country } from 'country-state-city';
 
 import { colors, spacing, typography, fontWeights } from '@/theme';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 const MANUAL_LOCATION_KEY = 'nearhub_manual_location';
 
@@ -29,6 +30,17 @@ export function ManualLocationScreen() {
   const [activeField, setActiveField] = useState<'country' | 'city' | null>(null);
   const [debouncedCountryQuery, setDebouncedCountryQuery] = useState('');
   const [debouncedCityQuery, setDebouncedCityQuery] = useState('');
+  const { refreshControl } = usePullToRefresh(async () => {
+    try {
+      const raw = await SecureStore.getItemAsync(MANUAL_LOCATION_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { country?: string; city?: string };
+      setCountryInput(saved.country ?? '');
+      setCityInput(saved.city ?? '');
+    } catch {
+      // Ignore invalid saved location data.
+    }
+  });
 
   const canSave = countryInput.trim().length > 0 && cityInput.trim().length > 0;
   const allCountries = useMemo(() => Country.getAllCountries(), []);
@@ -110,6 +122,7 @@ export function ManualLocationScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
         keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
       >
         <Text style={styles.subtitle}>
           Search and select country, city and district to personalize event discovery.

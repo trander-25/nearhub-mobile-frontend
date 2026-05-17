@@ -5,6 +5,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   role: string;
   preferences: string[];
+  preferencesOnboarded?: boolean;
   isBlocked: boolean;
   createdAt: string;
   updatedAt: string;

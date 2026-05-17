@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ActivityIndicator, Alert, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getOrganizerProfile, toggleFollowOrganizer } from '@/services';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import type { EventData } from '@/types';
+import { promptSignIn } from '@/utils/authPrompt';
 
 export function OrganizerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,6 +18,7 @@ export function OrganizerProfileScreen() {
   const { isAuthenticated } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [organizer, setOrganizer] = useState<{
@@ -29,9 +31,9 @@ export function OrganizerProfileScreen() {
   const [events, setEvents] = useState<EventData[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (silent = false) => {
     if (!id) return;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
       const response = await getOrganizerProfile(id);
       setOrganizer(response.organizer);
@@ -60,6 +62,7 @@ export function OrganizerProfileScreen() {
       setError(err instanceof Error ? err.message : 'Cannot load organizer profile.');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [id]);
 
@@ -70,7 +73,7 @@ export function OrganizerProfileScreen() {
   const handleToggleFollow = useCallback(async () => {
     if (!id) return;
     if (!isAuthenticated) {
-      router.push('/login' as never);
+      promptSignIn(() => router.push('/login?entry=required' as never));
       return;
     }
     if (isSubmitting) return;
@@ -85,6 +88,11 @@ export function OrganizerProfileScreen() {
       setIsSubmitting(false);
     }
   }, [id, isAuthenticated, isSubmitting, router]);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    loadProfile(true);
+  }, [loadProfile]);
 
   if (isLoading) {
     return (
@@ -103,7 +111,18 @@ export function OrganizerProfileScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary, colors.accent]}
+          progressBackgroundColor={colors.surface}
+        />
+      }
+    >
       <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.md) }]}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Feather name="arrow-left" size={18} color={colors.textPrimary} />
@@ -240,6 +259,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   eventsList: { gap: spacing.md },
+  meta: { color: colors.textTertiary, fontSize: typography.bodySmall, textAlign: 'center' },
   errorText: { color: colors.textSecondary, fontSize: typography.bodySmall, textAlign: 'center' },
 });
-

@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   accentBg: {
-    backgroundColor: '#EEF1FF',
+    backgroundColor: colors.accentSoft,
   },
   successBg: {
     backgroundColor: colors.success,

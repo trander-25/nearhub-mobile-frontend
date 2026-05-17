@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
@@ -261,6 +261,7 @@ export function MapEventsScreen() {
           originWhitelist={['*']}
           source={{ html: mapHtml }}
           onMessage={handleWebViewMessage}
+          pullToRefreshEnabled
           style={styles.map}
         />
       )}

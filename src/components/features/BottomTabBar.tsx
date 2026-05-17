@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { colors, spacing, typography, fontWeights } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +40,101 @@ interface BottomTabBarProps {
   onTabPress: (tab: string) => void;
 }
 
+type TabItem = {
+  key: string;
+  label: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
+};
+
+interface TabButtonProps {
+  tab: TabItem;
+  isActive: boolean;
+  onTabPress: (tab: string) => void;
+}
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function TabButton({ tab, isActive, onTabPress }: TabButtonProps) {
+  const activeProgress = useSharedValue(isActive ? 1 : 0);
+  const pressProgress = useSharedValue(0);
+  const isCenterQrTab = tab.key === 'scan-qr';
+
+  useEffect(() => {
+    activeProgress.value = withTiming(isActive ? 1 : 0, { duration: 180 });
+  }, [activeProgress, isActive]);
+
+  const tabAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: withSpring(pressProgress.value ? 0.94 : 1, {
+          damping: 18,
+          stiffness: 260,
+          mass: 0.8,
+        }),
+      },
+      {
+        translateY: withSpring(isActive && !isCenterQrTab ? -1 : 0, {
+          damping: 18,
+          stiffness: 220,
+        }),
+      },
+    ],
+  }));
+
+  const activePillStyle = useAnimatedStyle(() => ({
+    opacity: activeProgress.value,
+    transform: [{ scale: 0.9 + activeProgress.value * 0.1 }],
+  }));
+
+  return (
+    <AnimatedPressable
+      style={[
+        styles.tab,
+        isCenterQrTab && styles.centerQrTab,
+        isActive && isCenterQrTab && styles.centerQrTabActive,
+        tabAnimatedStyle,
+      ]}
+      onPress={() => onTabPress(tab.key)}
+      onPressIn={() => {
+        pressProgress.value = 1;
+      }}
+      onPressOut={() => {
+        pressProgress.value = 0;
+      }}
+    >
+      {!isCenterQrTab ? (
+        <Animated.View pointerEvents="none" style={[styles.activePill, activePillStyle]} />
+      ) : null}
+      {isCenterQrTab ? (
+        <MaterialCommunityIcons
+          name="qrcode-scan"
+          size={22}
+          color="#FFFFFF"
+        />
+      ) : (
+        <Feather
+          name={tab.icon}
+          size={20}
+          color={isActive ? '#FFFFFF' : colors.tabInactive}
+        />
+      )}
+      {!isCenterQrTab ? (
+        <Text
+          style={[
+            styles.tabLabel,
+            isActive && styles.tabLabelActive,
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
+          {tab.label}
+        </Text>
+      ) : null}
+    </AnimatedPressable>
+  );
+}
+
 export function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -45,45 +146,13 @@ export function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProps) {
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
       {tabItems.map((tab) => {
         const isActive = activeTab === tab.key;
-        const isCenterQrTab = tab.key === 'scan-qr';
         return (
-          <Pressable
+          <TabButton
             key={tab.key}
-            style={[
-              styles.tab,
-              isCenterQrTab && styles.centerQrTab,
-              isActive && !isCenterQrTab && styles.tabActive,
-              isActive && isCenterQrTab && styles.centerQrTabActive,
-            ]}
-            onPress={() => onTabPress(tab.key)}
-          >
-            {isCenterQrTab ? (
-              <MaterialCommunityIcons
-                name="qrcode-scan"
-                size={22}
-                color="#FFFFFF"
-              />
-            ) : (
-              <Feather
-                name={tab.icon}
-                size={20}
-                color={isActive ? '#FFFFFF' : colors.tabInactive}
-              />
-            )}
-            {!isCenterQrTab ? (
-              <Text
-                style={[
-                  styles.tabLabel,
-                  isActive && styles.tabLabelActive,
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.85}
-              >
-                {tab.label}
-              </Text>
-            ) : null}
-          </Pressable>
+            tab={tab}
+            isActive={isActive}
+            onTabPress={onTabPress}
+          />
         );
       })}
     </View>
@@ -93,17 +162,17 @@ export function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: spacing.md,
+    right: spacing.md,
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.8)',
     paddingTop: spacing.md,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.md,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    gap: 10,
+    gap: 6,
     shadowColor: 'rgba(25,27,35,0.04)',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 1,
@@ -115,11 +184,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     borderRadius: 16,
+    overflow: 'hidden',
   },
-  tabActive: {
+  activePill: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.primaryDark,
+    borderRadius: 16,
   },
   tabLabel: {
     fontSize: typography.badge,
@@ -141,7 +213,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 0,
     paddingHorizontal: 0,
-    shadowColor: 'rgba(0,61,155,0.25)',
+    shadowColor: colors.primaryShadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
     shadowRadius: 16,

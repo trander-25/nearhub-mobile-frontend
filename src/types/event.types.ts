@@ -87,6 +87,7 @@ export interface NearbyQueryParams {
   lng: number;
   radius?: number;
   category?: string;
+  categories?: string[];
   city?: string;
   keyword?: string;
   date?: string;
@@ -100,6 +101,7 @@ export interface NearbyQueryParams {
 export interface SearchQueryParams {
   keyword?: string;
   category?: string;
+  categories?: string[];
   city?: string;
   date?: string;
   startDate?: string;

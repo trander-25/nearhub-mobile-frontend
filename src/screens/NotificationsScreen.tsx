@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   notifCardUnread: {
-    backgroundColor: 'rgba(0,61,155,0.03)',
+    backgroundColor: colors.primarySubtle,
   },
   iconCircle: {
     width: 40,

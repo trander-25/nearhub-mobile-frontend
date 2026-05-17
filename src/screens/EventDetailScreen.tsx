@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
   Image,
   Linking,
   Modal,
   Platform,
-  Pressable,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -34,6 +35,7 @@ import {
 import { getMyEvents } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import type { EventData, ReviewItem } from '@/types';
+import { promptSignIn } from '@/utils/authPrompt';
 
 const HERO_HEIGHT = 397;
 
@@ -79,6 +81,7 @@ export function EventDetailScreen() {
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [rating, setRating] = useState({ average: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isRsvped, setIsRsvped] = useState(false);
   const [isLikeSubmitting, setIsLikeSubmitting] = useState(false);
@@ -98,8 +101,8 @@ export function EventDetailScreen() {
     }
   }, [id, isAuthenticated]);
 
-  async function loadDetail() {
-    setIsLoading(true);
+  async function loadDetail(silent = false) {
+    if (!silent) setIsLoading(true);
     try {
       const data = await getEventDetail(id!);
       setEvent(data.event);
@@ -111,6 +114,7 @@ export function EventDetailScreen() {
       setError('Could not load event details.');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }
 
@@ -129,7 +133,7 @@ export function EventDetailScreen() {
   const handleToggleLike = useCallback(async () => {
     if (!id) return;
     if (!isAuthenticated) {
-      router.push('/login' as never);
+      promptSignIn(() => router.push('/login?entry=required' as never));
       return;
     }
     if (isLikeSubmitting) return;
@@ -150,7 +154,7 @@ export function EventDetailScreen() {
   const handleRsvp = useCallback(async () => {
     if (!id) return;
     if (!isAuthenticated) {
-      router.push('/login' as never);
+      promptSignIn(() => router.push('/login?entry=required' as never));
       return;
     }
     if (isRsvpSubmitting) return;
@@ -174,10 +178,14 @@ export function EventDetailScreen() {
   const handleSubmitReview = useCallback(
     async (reviewRating: number, reviewComment: string) => {
       if (!id) return;
+      if (!isAuthenticated) {
+        promptSignIn(() => router.push('/login?entry=required' as never));
+        return;
+      }
       await submitReview(id, reviewRating, reviewComment);
       loadDetail();
     },
-    [id],
+    [id, isAuthenticated, router],
   );
 
   const handleDirections = useCallback(() => {
@@ -189,6 +197,13 @@ export function EventDetailScreen() {
     const query = encodeURIComponent(`${event.address}, ${event.city}`);
     Linking.openURL(`https://maps.google.com/?q=${query}`);
   }, [event]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!id) return;
+    setIsRefreshing(true);
+    await loadDetail(true);
+    if (isAuthenticated) await loadUserStatus();
+  }, [id, isAuthenticated]);
 
   const handleOpenMapScreen = useCallback(() => {
     if (!event) return;
@@ -206,7 +221,7 @@ export function EventDetailScreen() {
   const handleToggleFollowOrganizer = useCallback(async () => {
     if (!event?.organizer?.id) return;
     if (!isAuthenticated) {
-      router.push('/login' as never);
+      promptSignIn(() => router.push('/login?entry=required' as never));
       return;
     }
     if (isFollowSubmitting) return;
@@ -275,12 +290,21 @@ export function EventDetailScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary, colors.accent]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
       >
         {/* ====== Hero Section ====== */}
         <View style={styles.heroSection}>
           <Image source={{ uri: event.imageUrl }} style={styles.heroImage} resizeMode="cover" />
           <LinearGradient
-            colors={['rgba(0,0,0,0.2)', 'rgba(250,248,255,0)', colors.background]}
+            colors={['rgba(0,0,0,0.2)', 'rgba(251,252,247,0)', colors.background]}
             locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
@@ -299,11 +323,10 @@ export function EventDetailScreen() {
                     {(event.organizer?.displayName ?? event.address).charAt(0).toUpperCase()}
                   </Text>
                 </View>
-                <View>
-                  <Text style={styles.organizerName} numberOfLines={1}>
+                <View style={styles.organizerTextBlock}>
+                  <Text style={styles.organizerName}>
                     {event.organizer?.displayName ?? event.address.split(',')[0]}
                   </Text>
-                  <Text style={styles.organizerLabel}>Organizer</Text>
                 </View>
               </Pressable>
               <Pressable style={styles.followButton} onPress={handleToggleFollowOrganizer}>
@@ -332,9 +355,9 @@ export function EventDetailScreen() {
           <View style={styles.infoSection}>
             <Text style={styles.sectionHeading}>Location</Text>
             <View style={styles.infoCard}>
-              <View style={styles.infoRow}>
-                <Feather name="map-pin" size={16} color={colors.primary} />
-                <Text style={styles.infoPrimaryText} numberOfLines={1}>
+              <View style={styles.addressRow}>
+                <Feather name="map-pin" size={16} color={colors.primary} style={styles.addressIcon} />
+                <Text style={styles.addressText}>
                   {event.address}
                 </Text>
               </View>
@@ -459,7 +482,13 @@ export function EventDetailScreen() {
             {/* Write a Review button */}
             <Pressable
               style={styles.writeReviewButton}
-              onPress={() => setShowReviewModal(true)}
+              onPress={() => {
+                if (!isAuthenticated) {
+                  promptSignIn(() => router.push('/login?entry=required' as never));
+                  return;
+                }
+                setShowReviewModal(true);
+              }}
             >
               <Text style={styles.writeReviewButtonText}>Write a Review</Text>
             </Pressable>
@@ -494,7 +523,7 @@ export function EventDetailScreen() {
         </View>
         <Pressable onPress={handleRsvp}>
           <LinearGradient
-            colors={isRsvped ? ['#E7E7F2', '#E7E7F2'] : ['#003D9B', '#0052CC']}
+            colors={isRsvped ? colors.disabledGradient : colors.primaryGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.joinNowButton}
@@ -641,12 +670,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
   },
   organizerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     flex: 1,
+    minWidth: 0,
   },
   organizerAvatar: {
     width: 40,
@@ -655,26 +686,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   organizerAvatarText: {
     color: '#FFFFFF',
     fontSize: typography.body,
     fontWeight: fontWeights.bold,
   },
+  organizerTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
   organizerName: {
     fontSize: typography.bodySmall,
     fontWeight: fontWeights.bold,
     color: colors.textPrimary,
-  },
-  organizerLabel: {
-    fontSize: typography.caption,
-    color: colors.textTertiary,
+    flexShrink: 1,
+    lineHeight: 20,
   },
   followButton: {
     backgroundColor: colors.chipBg,
     borderRadius: 999,
     paddingHorizontal: spacing.lg,
     paddingVertical: 6,
+    flexShrink: 0,
   },
   followButtonText: {
     fontSize: typography.bodySmall,
@@ -696,6 +731,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  addressIcon: {
+    marginTop: 2,
+  },
+  addressText: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.bold,
+    color: colors.textPrimary,
+    lineHeight: 20,
   },
   infoPrimaryText: {
     flex: 1,
@@ -863,7 +914,7 @@ const styles = StyleSheet.create({
   },
   writeReviewButton: {
     borderWidth: 1,
-    borderColor: '#C3C6D6',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingVertical: 13,
     alignItems: 'center',
@@ -953,7 +1004,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: 'rgba(0,61,155,0.2)',
+    shadowColor: colors.primaryShadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
     shadowRadius: 15,

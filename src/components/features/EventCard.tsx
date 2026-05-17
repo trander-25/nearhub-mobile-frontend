@@ -1,8 +1,8 @@
 import React from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
-  Image,
   Pressable,
+  Image,
   StyleSheet,
   Text,
   View,

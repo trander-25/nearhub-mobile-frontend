@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { BottomTabBar } from '@/components/features';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { isOrganizerRole } from '@/utils/role';
+import { promptSignIn } from '@/utils/authPrompt';
 
 function extractEventIdFromQr(rawData: string): string | null {
   const value = rawData.trim();
@@ -58,12 +59,16 @@ export function ScanQrScreen() {
   const handleTabPress = useCallback(
     (tab: string) => {
       if (tab === 'explore') router.replace('/');
+      else if (tab === 'for-you') router.replace('/?tab=for-you');
+      else if (!isAuthenticated && (tab === 'saved' || tab === 'myevents' || tab === 'profile')) {
+        promptSignIn(() => router.push('/login?entry=required' as never));
+      }
       else if (tab === 'saved') router.replace('/saved');
       else if (tab === 'myevents') {
         router.replace(
           isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents',
         );
-      } else if (tab === 'profile') router.push('/profile');
+      } else if (tab === 'profile') router.replace('/profile');
     },
     [isAuthenticated, router, user?.role],
   );

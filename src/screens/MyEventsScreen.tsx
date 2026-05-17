@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   FlatList,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -74,9 +74,10 @@ export function MyEventsScreen() {
 
   const handleTabPress = useCallback((tab: string) => {
     if (tab === 'explore') router.replace('/');
+    else if (tab === 'for-you') router.replace('/?tab=for-you');
     else if (tab === 'saved') router.replace('/saved');
-    else if (tab === 'scan-qr') router.push('/scan-qr');
-    else if (tab === 'profile') router.push('/profile');
+    else if (tab === 'scan-qr') router.replace('/scan-qr');
+    else if (tab === 'profile') router.replace('/profile');
     else if (tab === 'myevents' && isAuthenticated && isOrganizerRole(user?.role)) router.replace('/organizer-overview');
   }, [isAuthenticated, router, user?.role]);
 
@@ -548,7 +549,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: 'rgba(0,61,155,0.08)',
+    backgroundColor: colors.primaryWash,
     borderRadius: 999,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,

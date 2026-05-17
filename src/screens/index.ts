@@ -1,4 +1,5 @@
 export * from './DiscoverScreen';
+export * from './ForYouScreen';
 export * from './EventDetailScreen';
 export * from './LoginScreen';
 export * from './RegisterScreen';

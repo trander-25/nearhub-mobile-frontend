@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { isOrganizerRole } from '@/utils/role';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -27,6 +28,7 @@ export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { refreshControl } = usePullToRefresh();
 
   const isFormValid = email.trim().length > 0 && password.length >= 8;
 
@@ -35,8 +37,8 @@ export function LoginScreen() {
     setError('');
     setIsSubmitting(true);
     try {
-      const signedInUser = await signIn({ email: email.trim(), password });
-      router.replace(isOrganizerRole(signedInUser.role) ? '/organizer-overview' : '/');
+      await signIn({ email: email.trim(), password });
+      router.replace('/');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Login failed. Please try again.');
     } finally {
@@ -52,10 +54,15 @@ export function LoginScreen() {
       <ScrollView
         contentContainerStyle={[styles.container, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
       >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Feather name="map-pin" size={36} color={colors.surface} />
+            <Image
+              source={require('../../assets/images/nearhub-app-icon.png')}
+              style={styles.logoImage}
+              resizeMode="cover"
+            />
           </View>
           <Text style={styles.appName}>NearHub</Text>
           <Text style={styles.subtitle}>Discover events near you</Text>
@@ -124,8 +131,8 @@ export function LoginScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <Pressable onPress={() => router.replace('/register')}>
+          <Text style={styles.footerText}>{"Don't have an account? "}</Text>
+          <Pressable onPress={() => router.replace('/register?entry=manual')}>
             <Text style={styles.footerLink}>Register now</Text>
           </Pressable>
         </View>
@@ -149,7 +156,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
@@ -158,6 +165,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 72,
+    height: 72,
   },
   appName: {
     fontSize: typography.title,

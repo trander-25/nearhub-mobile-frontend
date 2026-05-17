@@ -29,10 +29,10 @@ function calcDistanceKm(fromLat: number, fromLng: number, toLat: number, toLng: 
   return Number((earthRadiusKm * c).toFixed(2));
 }
 
-function pickDefined<T extends Record<string, unknown>>(input?: Partial<T>): Partial<T> {
+function pickDefined<T extends object>(input?: Partial<T>): Partial<T> {
   if (!input) return {};
   return Object.fromEntries(
-    Object.entries(input).filter(([, value]) => value !== undefined),
+    Object.entries(input as Record<string, unknown>).filter(([, value]) => value !== undefined),
   ) as Partial<T>;
 }
 
@@ -72,16 +72,12 @@ function toEventCardData(event: ApiEvent): EventData {
 }
 
 export async function getNearbyEvents(
-  params?: Partial<NearbyQueryParams>,
+  params: NearbyQueryParams,
 ): Promise<{ events: EventData[]; total: number; totalPages: number; page: number }> {
-  const definedParams = pickDefined<NearbyQueryParams>(params);
   const query: NearbyQueryParams = {
-    lat: DEFAULT_LAT,
-    lng: DEFAULT_LNG,
-    radius: 100,
-    page: 1,
-    limit: 20,
-    ...definedParams,
+    ...params,
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
   };
 
   const qs = buildQueryString(query as unknown as Record<string, unknown>);
@@ -177,6 +173,12 @@ export async function getEventDiscovery(keyword?: string): Promise<EventData[]> 
     const result = await searchEvents({ keyword: query });
     return result.events;
   }
-  const result = await getNearbyEvents();
+  const result = await getNearbyEvents({
+    lat: DEFAULT_LAT,
+    lng: DEFAULT_LNG,
+    radius: 100,
+    page: 1,
+    limit: 20,
+  });
   return result.events;
 }

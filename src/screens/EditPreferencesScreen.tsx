@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,11 +10,12 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile } from '@/services/userService';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 const ALL_CATEGORIES = [
   'Music',
@@ -49,12 +50,17 @@ const CATEGORY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 export function EditPreferencesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
   const { user, refreshUser } = useAuth();
+  const isOnboarding = params.mode === 'onboarding';
 
   const [selected, setSelected] = useState<Set<string>>(
     new Set(user?.preferences ?? []),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { refreshControl } = usePullToRefresh(() => {
+    setSelected(new Set(user?.preferences ?? []));
+  });
 
   const original = new Set(user?.preferences ?? []);
   const hasChanges =
@@ -70,18 +76,23 @@ export function EditPreferencesScreen() {
     });
   }, []);
 
-  async function handleSave() {
-    if (isSubmitting || !hasChanges) return;
+  async function persistPreferences(nextPreferences: string[]) {
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
       const updated = await updateProfile({
-        preferences: [...selected],
+        preferences: nextPreferences,
+        preferencesOnboarded: true,
       });
       if (refreshUser) refreshUser(updated);
-      Alert.alert('Success', 'Preferences updated.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      if (isOnboarding) {
+        router.replace(nextPreferences.length > 0 ? '/?tab=for-you' : '/');
+      } else {
+        Alert.alert('Success', 'Preferences updated.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Unable to update.');
     } finally {
@@ -89,23 +100,46 @@ export function EditPreferencesScreen() {
     }
   }
 
+  async function handleSave() {
+    if (isSubmitting || (!isOnboarding && !hasChanges)) return;
+    await persistPreferences([...selected]);
+  }
+
+  async function handleSkip() {
+    await persistPreferences([]);
+  }
+
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
-          <Feather name="arrow-left" size={20} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Preferences</Text>
+        {isOnboarding ? (
+          <View style={{ width: 36 }} />
+        ) : (
+          <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
+            <Feather name="arrow-left" size={20} color={colors.textPrimary} />
+          </Pressable>
+        )}
+        <Text style={styles.headerTitle}>{isOnboarding ? 'Choose interests' : 'Preferences'}</Text>
         <View style={{ width: 36 }} />
       </View>
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
-        <Text style={styles.subtitle}>
-          Select topics you care about to receive relevant event suggestions
-        </Text>
+        {isOnboarding ? (
+          <View style={styles.onboardingIntro}>
+            <Text style={styles.onboardingTitle}>What events should NearHub find for you?</Text>
+            <Text style={styles.subtitle}>
+              Pick a few topics so For You can prioritize nearby events that match your taste.
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.subtitle}>
+            Select topics you care about to receive relevant event suggestions
+          </Text>
+        )}
 
         <View style={styles.grid}>
           {ALL_CATEGORIES.map((cat) => {
@@ -142,15 +176,20 @@ export function EditPreferencesScreen() {
         <Text style={styles.selectedCount}>
           {selected.size} topics selected
         </Text>
+        {isOnboarding ? (
+          <Pressable style={styles.skipButton} onPress={handleSkip} disabled={isSubmitting}>
+            <Text style={styles.skipButtonText}>Skip</Text>
+          </Pressable>
+        ) : null}
         <Pressable
-          style={[styles.saveButton, (!hasChanges || isSubmitting) && styles.saveButtonDisabled]}
+          style={[styles.saveButton, ((!isOnboarding && !hasChanges) || isSubmitting) && styles.saveButtonDisabled]}
           onPress={handleSave}
-          disabled={!hasChanges || isSubmitting}
+          disabled={(!isOnboarding && !hasChanges) || isSubmitting}
         >
           {isSubmitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>{isOnboarding ? 'Continue' : 'Save'}</Text>
           )}
         </Pressable>
       </View>
@@ -192,6 +231,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: spacing.xl,
   },
+  onboardingIntro: {
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  onboardingTitle: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: fontWeights.extrabold,
+    color: colors.textPrimary,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -210,7 +259,7 @@ const styles = StyleSheet.create({
   },
   categoryCardActive: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(0,61,155,0.04)',
+    backgroundColor: colors.primarySubtle,
   },
   categoryIcon: {
     width: 48,
@@ -253,8 +302,18 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   selectedCount: {
+    flex: 1,
     fontSize: typography.bodySmall,
     fontWeight: fontWeights.medium,
+    color: colors.textSecondary,
+  },
+  skipButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+  },
+  skipButtonText: {
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.semibold,
     color: colors.textSecondary,
   },
   saveButton: {

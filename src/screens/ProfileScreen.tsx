@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -42,11 +43,12 @@ export function ProfileScreen() {
   const [followingOrganizers, setFollowingOrganizers] = useState<FollowingOrganizer[]>([]);
   const [activeEventTab, setActiveEventTab] = useState<EventTab>('myevents');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
 
-  const loadProfileData = useCallback(async () => {
-    setIsLoading(true);
+  const loadProfileData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const [profileRes, eventsRes, followingRes] = await Promise.all([
         getProfile(),
@@ -60,6 +62,7 @@ export function ProfileScreen() {
       if (authUser) setProfile(authUser);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [authUser]);
 
@@ -93,8 +96,9 @@ export function ProfileScreen() {
       return;
     }
     if (tab === 'explore') router.replace('/');
+    else if (tab === 'for-you') router.replace('/?tab=for-you');
     else if (tab === 'saved') router.replace('/saved');
-    else if (tab === 'scan-qr') router.push('/scan-qr');
+    else if (tab === 'scan-qr') router.replace('/scan-qr');
     else if (tab === 'myevents') router.replace('/myevents');
   }, [isAdmin, isOrganizer, router]);
 
@@ -107,10 +111,16 @@ export function ProfileScreen() {
         onPress: async () => {
           setShowSettings(false);
           await signOut();
+          router.replace('/');
         },
       },
     ]);
-  }, [signOut]);
+  }, [router, signOut]);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    loadProfileData(true);
+  }, [loadProfileData]);
 
   if (isLoading) {
     return (
@@ -134,6 +144,15 @@ export function ProfileScreen() {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary, colors.accent]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
       >
         {/* Profile Header */}
         <View style={styles.profileHeader}>
@@ -526,7 +545,7 @@ const styles = StyleSheet.create({
   changeBtn: {
     marginTop: spacing.md,
     borderWidth: 1,
-    borderColor: '#C3C6D6',
+    borderColor: colors.border,
     borderRadius: 9999,
     paddingHorizontal: 25,
     paddingVertical: 7,

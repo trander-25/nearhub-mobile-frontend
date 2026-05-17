@@ -22,7 +22,7 @@ export function SearchBar({
   return (
     <View style={styles.wrapper}>
       <View style={styles.container}>
-        <Feather name="search" size={18} color={colors.textTertiary} style={styles.icon} />
+        <Feather name="search" size={16} color={colors.textTertiary} style={styles.icon} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -34,7 +34,7 @@ export function SearchBar({
         />
       </View>
       <Pressable style={styles.filterButton} onPress={onFilterPress}>
-        <Feather name="sliders" size={18} color={colors.textSecondary} />
+        <Feather name="sliders" size={16} color={colors.textSecondary} />
       </Pressable>
     </View>
   );
@@ -52,23 +52,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surfaceSecondary,
     borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   icon: {
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
   },
   input: {
     flex: 1,
     color: colors.textPrimary,
-    fontSize: typography.body,
+    fontSize: typography.bodySmall,
     fontWeight: fontWeights.medium,
     padding: 0,
   },
   filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',

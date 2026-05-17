@@ -3,3 +3,4 @@ export * from './auth.types';
 export * from './notification.types';
 export * from './organizer.types';
 export * from './admin.types';
+export * from './chat.types';

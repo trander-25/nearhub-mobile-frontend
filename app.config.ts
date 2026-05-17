@@ -33,7 +33,7 @@ const config: ExpoConfig = {
   },
   web: {
     output: 'static',
-    favicon: './assets/images/favicon.png',
+    favicon: './assets/images/nearhub-app-icon.png',
   },
   plugins: [
     'expo-router',
@@ -42,13 +42,20 @@ const config: ExpoConfig = {
       {
         backgroundColor: '#208AEF',
         android: {
-          image: './assets/images/splash-icon.png',
+          image: './assets/images/nearhub-app-icon.png',
+          imageWidth: 76,
+        },
+        ios: {
+          image: './assets/images/nearhub-app-icon.png',
           imageWidth: 76,
         },
       },
     ],
+    '@react-native-community/datetimepicker',
+    'expo-image',
     'expo-secure-store',
     'expo-notifications',
+    'expo-web-browser',
   ],
   experiments: {
     typedRoutes: true,

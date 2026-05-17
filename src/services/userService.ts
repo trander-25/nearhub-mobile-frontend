@@ -11,6 +11,7 @@ export interface UpdateProfileInput {
   displayName?: string;
   avatarUrl?: string | null;
   preferences?: string[];
+  preferencesOnboarded?: boolean;
 }
 
 export interface FollowingOrganizer {

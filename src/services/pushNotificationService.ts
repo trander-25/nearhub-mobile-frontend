@@ -3,12 +3,18 @@ import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+import { colors } from '@/theme';
 import { saveFcmToken } from './notificationService';
 
 const DEVICE_ID_KEY = 'nearhub_device_id';
 const DEFAULT_NOTIFICATION_CHANNEL_ID = 'default';
 let notificationHandlerInitialized = false;
 let notificationChannelInitialized = false;
+
+type NotificationPermissionResult = {
+  granted?: boolean;
+  status?: string;
+};
 
 function canUseRemotePush(): boolean {
   // Expo Go no longer supports Android remote push notification token APIs.
@@ -49,7 +55,7 @@ async function ensureAndroidNotificationChannel(): Promise<void> {
     name: 'Default',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#208AEF',
+    lightColor: colors.primary,
   });
   notificationChannelInitialized = true;
 }
@@ -68,6 +74,10 @@ async function getOrCreateDeviceId(): Promise<string> {
   return next;
 }
 
+function isNotificationPermissionGranted(permission: NotificationPermissionResult): boolean {
+  return permission.granted === true || permission.status === 'granted';
+}
+
 export async function getPushRegistrationContext(): Promise<{ deviceId: string; fcmToken?: string }> {
   const deviceId = await getOrCreateDeviceId();
   await initializePushNotifications();
@@ -76,14 +86,14 @@ export async function getPushRegistrationContext(): Promise<{ deviceId: string; 
   const Notifications = await getNotificationsModule();
   if (!Notifications) return { deviceId };
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  const existingPermission = await Notifications.getPermissionsAsync() as NotificationPermissionResult;
+  let isGranted = isNotificationPermissionGranted(existingPermission);
+  if (!isGranted) {
+    const requestedPermission = await Notifications.requestPermissionsAsync() as NotificationPermissionResult;
+    isGranted = isNotificationPermissionGranted(requestedPermission);
   }
 
-  if (finalStatus !== 'granted') {
+  if (!isGranted) {
     return { deviceId };
   }
 

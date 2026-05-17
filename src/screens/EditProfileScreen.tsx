@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile } from '@/services/userService';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export function EditProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +30,11 @@ export function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const { refreshControl } = usePullToRefresh(() => {
+    setDisplayName(user?.displayName ?? '');
+    setAvatarUrl(user?.avatarUrl ?? '');
+    setError('');
+  });
 
   const hasChanges =
     displayName.trim() !== (user?.displayName ?? '') ||
@@ -71,6 +77,7 @@ export function EditProfileScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
       >
         {/* Avatar preview */}
         <View style={styles.avatarSection}>

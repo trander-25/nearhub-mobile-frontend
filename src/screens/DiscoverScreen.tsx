@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
   FlatList,
   Modal,
-  Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
   type ListRenderItem,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,6 +37,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { colors, spacing, typography, fontWeights } from '@/theme';
 import type { CategoryItem, EventData } from '@/types';
 import { isOrganizerRole } from '@/utils/role';
+import { promptSignIn } from '@/utils/authPrompt';
 
 const MANUAL_LOCATION_KEY = 'nearhub_manual_location';
 
@@ -46,19 +48,114 @@ interface ManualLocationValue {
 }
 
 const AREA_FILTER = 'Your area';
+const FOR_YOU_FILTER = 'For You';
 const ALL_EVENTS_FILTER = 'All events';
+const DEFAULT_AREA_RADIUS_KM = 100;
+
+type LocationSource = 'current' | 'manual';
+type SortBy = 'distance' | 'startAt' | 'newest' | 'popular';
+type SearchSortBy = 'relevance' | SortBy;
+
+interface LocationState {
+  lat?: number;
+  lng?: number;
+  city?: string;
+  district?: string;
+  source?: LocationSource;
+}
+
+let cachedDiscoverLocation: LocationState | null = null;
+let didBootstrapDiscoverLocation = false;
+let bootstrapDiscoverLocationPromise: Promise<LocationState | null> | null = null;
+
+function hasCoordinates(location: { lat?: number; lng?: number }) {
+  return typeof location.lat === 'number' && typeof location.lng === 'number';
+}
+
+function normalizeOptionalText(value?: string) {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
+
+function normalizeRadius(value?: number) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+async function readCurrentLocation(silent = false): Promise<LocationState | null> {
+  try {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      if (!silent) {
+        Alert.alert('Location access denied', 'You can still choose city/district manually.');
+      }
+      return null;
+    }
+
+    let current: Location.LocationObject | null = null;
+    try {
+      current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+    } catch {
+      current = await Location.getLastKnownPositionAsync();
+    }
+
+    if (!current) {
+      if (!silent) {
+        Alert.alert('Location unavailable', 'Cannot get your current coordinates from this device.');
+      }
+      return null;
+    }
+
+    const [geo] = await Location.reverseGeocodeAsync({
+      latitude: current.coords.latitude,
+      longitude: current.coords.longitude,
+    }).catch(() => []);
+    const city = geo?.city ?? geo?.subregion ?? geo?.region ?? '';
+    const district = geo?.district ?? geo?.subregion ?? '';
+
+    return {
+      lat: current.coords.latitude,
+      lng: current.coords.longitude,
+      city,
+      district,
+      source: 'current',
+    };
+  } catch {
+    if (!silent) {
+      Alert.alert('Location unavailable', 'Unable to resolve your current location right now.');
+    }
+    return null;
+  }
+}
+
+async function bootstrapDiscoverLocation(): Promise<LocationState | null> {
+  if (didBootstrapDiscoverLocation) return cachedDiscoverLocation;
+
+  bootstrapDiscoverLocationPromise ??= readCurrentLocation(true).then((location) => {
+    cachedDiscoverLocation = location;
+    didBootstrapDiscoverLocation = true;
+    return location;
+  }).finally(() => {
+    bootstrapDiscoverLocationPromise = null;
+  });
+
+  return bootstrapDiscoverLocationPromise;
+}
 
 export function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { isAuthenticated, user } = useAuth();
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>(AREA_FILTER);
+  const [selectedCategory, setSelectedCategory] = useState<string>(FOR_YOU_FILTER);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [showFilter, setShowFilter] = useState(false);
@@ -70,20 +167,52 @@ export function DiscoverScreen() {
     sortBy?: string;
     radius?: number;
   }>({});
-  const [locationState, setLocationState] = useState<{
-    lat?: number;
-    lng?: number;
-    city?: string;
-    district?: string;
-  }>({});
+  const [locationState, setLocationState] = useState<LocationState>(() => cachedDiscoverLocation ?? {});
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+  const [isBootstrappingLocation, setIsBootstrappingLocation] = useState(!didBootstrapDiscoverLocation);
   const [manualLocation, setManualLocation] = useState<ManualLocationValue | null>(null);
+  const preferences = useMemo(() => user?.preferences ?? [], [user?.preferences]);
+  const hasPreferences = preferences.length > 0;
+
+  useEffect(() => {
+    if (params.tab === 'for-you') {
+      setSelectedCategory(FOR_YOU_FILTER);
+    }
+  }, [params.tab]);
 
   useEffect(() => {
     loadCategories();
     if (isAuthenticated) loadUserLikes();
   }, [isAuthenticated]);
+
+  const resolveCurrentLocation = useCallback(async (silent = false): Promise<boolean> => {
+    const location = await readCurrentLocation(silent);
+    if (!location) return false;
+
+    cachedDiscoverLocation = location;
+    didBootstrapDiscoverLocation = true;
+    setLocationState(location);
+    setFilterState((prev) => ({ ...prev, city: undefined }));
+    setPage(1);
+    setError(null);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const location = await bootstrapDiscoverLocation();
+      if (mounted && location) {
+        setLocationState(location);
+      }
+      if (mounted) setIsBootstrappingLocation(false);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resolveCurrentLocation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -104,16 +233,17 @@ export function DiscoverScreen() {
             const nextKey = `${normalized.country}|${normalized.city}|${normalized.district}`;
             if (prevKey === nextKey) return prev;
 
-            setLocationState((state) => ({
-              ...state,
-              // Manual location should override GPS coordinates.
-              // Clear lat/lng so discovery switches to city-based filtering.
-              lat: undefined,
-              lng: undefined,
-              city: normalized.city,
-              district: normalized.district || undefined,
-            }));
-            setFilterState((state) => ({ ...state, city: normalized.city }));
+            setLocationState((state) => (
+              state.source === 'current'
+                ? state
+                : {
+                    lat: undefined,
+                    lng: undefined,
+                    city: normalized.city,
+                    district: normalized.district || undefined,
+                    source: 'manual',
+                  }
+            ));
             return normalized;
           });
         } catch {
@@ -148,47 +278,62 @@ export function DiscoverScreen() {
     }
   }
 
-  const loadEvents = useCallback(async (pageNum: number, reset: boolean) => {
-    if (reset) setIsLoading(true);
+  const loadEvents = useCallback(async (pageNum: number, reset: boolean, silent = false) => {
+    if (isBootstrappingLocation && (selectedCategory === AREA_FILTER || selectedCategory === FOR_YOU_FILTER)) return;
+
+    if (reset && !silent) setIsLoading(true);
     else setIsLoadingMore(true);
 
     try {
       const query = search.trim();
       let result;
       const isAreaMode = selectedCategory === AREA_FILTER;
+      const isForYouMode = selectedCategory === FOR_YOU_FILTER;
       const isAllEventsMode = selectedCategory === ALL_EVENTS_FILTER;
-      const hasCoordinates =
-        typeof locationState.lat === 'number' && typeof locationState.lng === 'number';
-      const effectiveCity = filterState.city?.trim() || locationState.city?.trim() || undefined;
-      const shouldUseSearchWithoutCoordinates = !hasCoordinates && Boolean(effectiveCity);
+      const canUseCoordinates = hasCoordinates(locationState);
+      const radius = normalizeRadius(filterState.radius);
+      const selectedSort = (filterState.sortBy as SortBy | undefined) ?? (isAreaMode ? 'distance' : 'startAt');
+      const cityFilter = normalizeOptionalText(filterState.city);
+      const manualCity = locationState.source === 'manual' ? normalizeOptionalText(locationState.city) : undefined;
+      const effectiveCity = cityFilter ?? manualCity;
       const selectedTopics = filterState.topics ?? [];
       const singleTopic = selectedTopics.length === 1 ? selectedTopics[0] : undefined;
-      const categoryFilter = isAreaMode || isAllEventsMode ? undefined : selectedCategory;
+      const categoryFilter = isAreaMode || isAllEventsMode || isForYouMode ? undefined : selectedCategory;
       const effectiveCategory = singleTopic ?? categoryFilter;
 
-      if (
-        shouldUseSearchWithoutCoordinates ||
-        (!isAreaMode && (isAllEventsMode || query || effectiveCity || filterState.radius))
-      ) {
+      if (isForYouMode) {
         result = await searchEvents({
           keyword: query || undefined,
+          categories: hasPreferences ? preferences : undefined,
+          lat: canUseCoordinates ? locationState.lat : undefined,
+          lng: canUseCoordinates ? locationState.lng : undefined,
+          sortBy: canUseCoordinates ? 'distance' : 'startAt',
+          page: pageNum,
+          limit: 20,
+        });
+      } else if (isAreaMode && canUseCoordinates) {
+        result = await getNearbyEvents({
+          lat: locationState.lat!,
+          lng: locationState.lng!,
+          keyword: query || undefined,
           category: effectiveCategory,
-          city: isAllEventsMode ? undefined : effectiveCity,
-          sortBy: (filterState.sortBy as 'relevance' | 'distance' | 'startAt' | 'newest' | 'popular') ?? 'relevance',
-          radius: isAllEventsMode ? undefined : filterState.radius,
-          lat: isAllEventsMode ? undefined : locationState.lat,
-          lng: isAllEventsMode ? undefined : locationState.lng,
+          sortBy: selectedSort,
+          radius: radius ?? DEFAULT_AREA_RADIUS_KM,
           page: pageNum,
           limit: 20,
         });
       } else {
-        result = await getNearbyEvents({
-          lat: locationState.lat,
-          lng: locationState.lng,
+        const searchSort: SearchSortBy =
+          selectedSort === 'distance' && !canUseCoordinates ? 'startAt' : selectedSort;
+
+        result = await searchEvents({
+          keyword: query || undefined,
           category: effectiveCategory,
-          city: effectiveCity,
-          sortBy: (filterState.sortBy as 'distance' | 'startAt' | 'newest' | 'popular') ?? 'distance',
-          radius: filterState.radius,
+          city: isAllEventsMode ? undefined : effectiveCity,
+          sortBy: searchSort,
+          radius: canUseCoordinates && !isAllEventsMode ? radius : undefined,
+          lat: canUseCoordinates && !isAllEventsMode ? locationState.lat : undefined,
+          lng: canUseCoordinates && !isAllEventsMode ? locationState.lng : undefined,
           page: pageNum,
           limit: 20,
         });
@@ -212,8 +357,9 @@ export function DiscoverScreen() {
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
+      setIsRefreshing(false);
     }
-  }, [search, selectedCategory, filterState, locationState.lat, locationState.lng, locationState.city]);
+  }, [filterState, hasPreferences, isBootstrappingLocation, locationState, preferences, search, selectedCategory]);
 
   useEffect(() => {
     setPage(1);
@@ -231,7 +377,7 @@ export function DiscoverScreen() {
   const handleToggleLike = useCallback(
     async (eventId: string) => {
       if (!isAuthenticated) {
-        router.push('/login' as never);
+        promptSignIn(() => router.push('/login?entry=required' as never));
         return;
       }
 
@@ -257,14 +403,24 @@ export function DiscoverScreen() {
     loadEvents(1, true);
   }, [loadEvents]);
 
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    setPage(1);
+    await loadCategories();
+    if (isAuthenticated) await loadUserLikes();
+    await loadEvents(1, true, true);
+  }, [isAuthenticated, loadEvents]);
+
   const handleFilterApply = useCallback(
     (filters: { categories?: string[]; city?: string; sortBy?: string; radius?: number }) => {
       if (filters.categories?.length === 1) {
         setSelectedCategory(filters.categories[0]);
+      } else if (filters.categories && filters.categories.length > 1) {
+        setSelectedCategory(ALL_EVENTS_FILTER);
       }
       setFilterState({
         topics: filters.categories,
-        city: filters.city,
+        city: normalizeOptionalText(filters.city),
         sortBy: filters.sortBy,
         radius: filters.radius,
       });
@@ -272,8 +428,12 @@ export function DiscoverScreen() {
     [],
   );
 
-  const locationLabel = locationState.district
-    ? `${locationState.district}, ${locationState.city ?? 'Unknown'}`
+  const locationLabel = locationState.source === 'current'
+    ? (
+        locationState.district
+          ? `${locationState.district}, ${locationState.city ?? 'Current location'}`
+          : locationState.city ?? 'Current location'
+      )
     : (locationState.city ?? filterState.city ?? 'Tap to set location');
 
   const manualLocationLabel = useMemo(() => {
@@ -285,57 +445,17 @@ export function DiscoverScreen() {
   const handleUseCurrentLocation = useCallback(async () => {
     setIsResolvingLocation(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('Location access denied', 'You can still choose city/district manually.');
-        return;
+      const resolved = await resolveCurrentLocation(false);
+      if (resolved) {
+        setShowLocationPicker(false);
       }
-
-      let current: Location.LocationObject | null = null;
-      try {
-        current = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-      } catch {
-        current = await Location.getLastKnownPositionAsync();
-      }
-
-      if (!current) {
-        Alert.alert('Location unavailable', 'Cannot get your current coordinates from this device.');
-        return;
-      }
-
-      const geoRes = await fetch(
-        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.coords.latitude}&longitude=${current.coords.longitude}&localityLanguage=en`,
-      );
-      const geo = (await geoRes.json()) as {
-        countryName?: string;
-        city?: string;
-        locality?: string;
-        principalSubdivision?: string;
-      };
-      const city = geo.city ?? geo.locality ?? geo.principalSubdivision ?? '';
-      const district = geo.locality ?? '';
-
-      setLocationState({
-        lat: current.coords.latitude,
-        lng: current.coords.longitude,
-        city,
-        district,
-      });
-      setFilterState((prev) => ({ ...prev, city: city || prev.city }));
-      setPage(1);
-      loadEvents(1, true);
-      setShowLocationPicker(false);
-      setError(null);
-    } catch {
-      Alert.alert('Location unavailable', 'Unable to resolve your current location right now.');
     } finally {
       setIsResolvingLocation(false);
     }
-  }, [loadEvents]);
+  }, [resolveCurrentLocation]);
 
   const categoryNames = categories.map((c) => c.category);
+  const isForYouSelected = selectedCategory === FOR_YOU_FILTER;
 
   const renderItem: ListRenderItem<EventData> = ({ item }) => (
     <EventCard
@@ -353,7 +473,7 @@ export function DiscoverScreen() {
     />
   );
 
-  const ListHeader = (
+  const FixedHeader = (
     <View style={styles.headerContainer}>
       <View style={[styles.topNav, { paddingTop: insets.top + spacing.lg }]}>
         <Text style={styles.heroTitle}>Explore</Text>
@@ -397,12 +517,23 @@ export function DiscoverScreen() {
 
   return (
     <View style={styles.screen}>
+      {FixedHeader}
+
       <FlatList
         data={events}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        ListHeaderComponent={ListHeader}
+        style={styles.list}
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary, colors.accent]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.skeletonContainer}>
@@ -412,7 +543,7 @@ export function DiscoverScreen() {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <Feather name="search" size={48} color={colors.textTertiary} />
+              <Feather name={isForYouSelected ? 'heart' : 'search'} size={48} color={colors.textTertiary} />
               <Text style={styles.emptyText}>No events found</Text>
               <Text style={styles.emptySubtext}>
                 Try adjusting your filters or search terms
@@ -435,10 +566,14 @@ export function DiscoverScreen() {
 
       <BottomTabBar activeTab="explore" onTabPress={(tab) => {
         if (tab === 'explore') return;
-        if (tab === 'saved') router.push('/saved');
-        else if (tab === 'scan-qr') router.push('/scan-qr');
-        else if (tab === 'myevents') router.push(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
-        else if (tab === 'profile') router.push('/profile');
+        if (!isAuthenticated && (tab === 'saved' || tab === 'myevents' || tab === 'profile')) {
+          promptSignIn(() => router.push('/login?entry=required' as never));
+          return;
+        }
+        if (tab === 'saved') router.replace('/saved');
+        else if (tab === 'scan-qr') router.replace('/scan-qr');
+        else if (tab === 'myevents') router.replace(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
+        else if (tab === 'profile') router.replace('/profile');
       }} />
 
       <FilterModal
@@ -504,8 +639,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   headerContainer: {
+    backgroundColor: colors.background,
     gap: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xs,
+    zIndex: 10,
+    elevation: 2,
   },
   topNav: {
     flexDirection: 'row',
@@ -554,7 +693,10 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  list: {
+    flex: 1,
   },
   skeletonContainer: {
     paddingTop: spacing.sm,
@@ -572,6 +714,8 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: typography.bodySmall,
     color: colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   loadingMore: {
     paddingVertical: spacing.xl,

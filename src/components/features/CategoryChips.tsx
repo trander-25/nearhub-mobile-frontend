@@ -1,11 +1,12 @@
 import React from 'react';
 import { Feather } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { colors, spacing, typography, fontWeights } from '@/theme';
 
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Feather>['name']> = {
   'Your area': 'navigation',
+  'For You': 'heart',
   'All events': 'grid',
   Music: 'music',
   Art: 'image',
@@ -26,7 +27,7 @@ interface CategoryChipsProps {
 }
 
 export function CategoryChips({ categories, selected, onSelect }: CategoryChipsProps) {
-  const allCategories = ['Your area', 'All events', ...categories];
+  const allCategories = ['For You', 'Your area', 'All events', ...categories];
 
   return (
     <ScrollView
@@ -46,7 +47,7 @@ export function CategoryChips({ categories, selected, onSelect }: CategoryChipsP
           >
             <Feather
               name={iconName}
-              size={16}
+              size={14}
               color={isActive ? '#FFFFFF' : colors.textSecondary}
             />
             <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
@@ -62,8 +63,8 @@ export function CategoryChips({ categories, selected, onSelect }: CategoryChipsP
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 0,
-    gap: spacing.sm,
-    paddingBottom: spacing.xs,
+    gap: spacing.xs,
+    paddingBottom: 2,
   },
   chip: {
     flexDirection: 'row',
@@ -71,8 +72,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     backgroundColor: colors.chipBg,
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   chipActive: {
     backgroundColor: colors.primary,
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   chipText: {
-    fontSize: typography.bodySmall,
+    fontSize: typography.caption,
     fontWeight: fontWeights.medium,
     color: colors.textSecondary,
   },

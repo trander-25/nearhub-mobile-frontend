@@ -54,7 +54,7 @@ export async function getOrganizerStats(): Promise<OrganizerStats> {
 export async function getOrganizerProfile(organizerId: string): Promise<OrganizerProfileResponse> {
   return apiRequest<OrganizerProfileResponse>(`/organizer/${organizerId}/profile`, {
     method: 'GET',
-    requireAuth: true,
+    optionalAuth: true,
   });
 }
 

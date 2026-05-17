@@ -6,3 +6,5 @@ export * from './FilterModal';
 export * from './BottomTabBar';
 export * from './WriteReviewModal';
 export * from './OpenStreetMapPicker';
+export * from './AIChatWidget';
+export * from './AuthRequiredModal';

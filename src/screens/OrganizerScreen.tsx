@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
   FlatList,
   Modal,
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -526,7 +526,11 @@ export function OrganizerScreen({
             <RefreshControl refreshing={statsRefreshing} onRefresh={() => {
               setStatsRefreshing(true);
               loadStats(true);
-            }} />
+            }}
+              tintColor={colors.primary}
+              colors={[colors.primary, colors.accent]}
+              progressBackgroundColor={colors.surface}
+            />
           }
         >
           {statsLoading ? (
@@ -570,8 +574,15 @@ export function OrganizerScreen({
             data={filteredEvents}
             keyExtractor={(item) => item.id}
             contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 110 }]}
-            refreshing={eventsLoading}
-            onRefresh={loadEvents}
+            refreshControl={
+              <RefreshControl
+                refreshing={eventsLoading}
+                onRefresh={loadEvents}
+                tintColor={colors.primary}
+                colors={[colors.primary, colors.accent]}
+                progressBackgroundColor={colors.surface}
+              />
+            }
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Feather name="briefcase" size={34} color={colors.textPlaceholder} />

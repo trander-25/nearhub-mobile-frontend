@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "374648156727",
+    "project_id": "nearhub-77d93",
+    "storage_bucket": "nearhub-77d93.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:374648156727:android:995f56619c0794857585b2",
+        "android_client_info": {
+          "package_name": "com.baxin.nearhub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEPIEM_5GJUsQ0DqafW9cxRvYvrBP0xGM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

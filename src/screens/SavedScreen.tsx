@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { ApiEvent, EventData } from '@/types/event.types';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { isOrganizerRole } from '@/utils/role';
+import { promptSignIn } from '@/utils/authPrompt';
 
 type LikedEvent = ApiEvent & { isRsvped: boolean; isLiked: boolean };
 const DEFAULT_LAT = 10.7769;
@@ -112,7 +113,7 @@ export function SavedScreen() {
   const handleToggleLike = useCallback(
     async (eventId: string) => {
       if (!isAuthenticated) {
-        router.push('/login' as never);
+        promptSignIn(() => router.push('/login?entry=required' as never));
         return;
       }
 
@@ -132,9 +133,10 @@ export function SavedScreen() {
 
   const handleTabPress = useCallback((tab: string) => {
     if (tab === 'explore') router.replace('/');
-    else if (tab === 'scan-qr') router.push('/scan-qr');
+    else if (tab === 'for-you') router.replace('/?tab=for-you');
+    else if (tab === 'scan-qr') router.replace('/scan-qr');
     else if (tab === 'myevents') router.replace(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
-    else if (tab === 'profile') router.push('/profile');
+    else if (tab === 'profile') router.replace('/profile');
   }, [isAuthenticated, router, user?.role]);
 
   const visibleEvents = events.filter((e) => likedMap[e.id] !== false);

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Pressable,
   ActivityIndicator,
   Alert,
   FlatList,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -60,6 +60,7 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
   const [broadcastBody, setBroadcastBody] = useState('');
   const [broadcastEventId, setBroadcastEventId] = useState('');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastRefreshing, setBroadcastRefreshing] = useState(false);
 
   const loadPendingEvents = useCallback(async () => {
     setEventsLoading(true);
@@ -152,6 +153,14 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
     }
   }, [broadcastBody, broadcastEventId, broadcastTitle]);
 
+  const refreshBroadcastForm = useCallback(() => {
+    setBroadcastRefreshing(true);
+    setBroadcastTitle('');
+    setBroadcastBody('');
+    setBroadcastEventId('');
+    setTimeout(() => setBroadcastRefreshing(false), 450);
+  }, []);
+
   const handleBottomTab = useCallback((tab: string) => {
     if (tab === 'admin-moderation') router.replace('/admin-moderation');
     else if (tab === 'admin-users') router.replace('/admin-users');
@@ -203,6 +212,9 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
                 setEventsRefreshing(true);
                 loadPendingEvents();
               }}
+              tintColor={colors.primary}
+              colors={[colors.primary, colors.accent]}
+              progressBackgroundColor={colors.surface}
             />
           }
           ListEmptyComponent={
@@ -290,8 +302,15 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
           <FlatList
             data={visibleUsers}
             keyExtractor={(item) => item.id}
-            refreshing={usersLoading}
-            onRefresh={loadUsers}
+            refreshControl={
+              <RefreshControl
+                refreshing={usersLoading}
+                onRefresh={loadUsers}
+                tintColor={colors.primary}
+                colors={[colors.primary, colors.accent]}
+                progressBackgroundColor={colors.surface}
+              />
+            }
             contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 110 }]}
             ListEmptyComponent={
               usersLoading ? (
@@ -338,7 +357,18 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
       ) : null}
 
       {activeTab === 'broadcast' ? (
-        <ScrollView contentContainerStyle={[styles.broadcastWrap, { paddingBottom: insets.bottom + 110 }]}>
+        <ScrollView
+          contentContainerStyle={[styles.broadcastWrap, { paddingBottom: insets.bottom + 110 }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={broadcastRefreshing}
+              onRefresh={refreshBroadcastForm}
+              tintColor={colors.primary}
+              colors={[colors.primary, colors.accent]}
+              progressBackgroundColor={colors.surface}
+            />
+          }
+        >
           <View style={styles.card}>
             <Text style={styles.label}>Broadcast title</Text>
             <TextInput

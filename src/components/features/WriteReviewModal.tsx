@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
+  Pressable,
   ActivityIndicator,
   Modal,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -86,7 +86,7 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
             </Pressable>
             <Pressable onPress={handleSubmit} disabled={!canSubmit} style={styles.submitWrap}>
               <LinearGradient
-                colors={canSubmit ? ['#003D9B', '#0052CC'] : ['#E7E7F2', '#E7E7F2']}
+                colors={canSubmit ? colors.primaryGradient : colors.disabledGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.submitButton}
