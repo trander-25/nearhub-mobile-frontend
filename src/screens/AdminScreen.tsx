@@ -162,10 +162,10 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
   }, []);
 
   const handleBottomTab = useCallback((tab: string) => {
-    if (tab === 'admin-moderation') router.replace('/admin-moderation');
-    else if (tab === 'admin-users') router.replace('/admin-users');
-    else if (tab === 'admin-broadcast') router.replace('/admin-broadcast');
-    else if (tab === 'profile') router.replace('/profile');
+    if (tab === 'admin-moderation') router.navigate('/admin-moderation' as never);
+    else if (tab === 'admin-users') router.navigate('/admin-users' as never);
+    else if (tab === 'admin-broadcast') router.navigate('/admin-broadcast' as never);
+    else if (tab === 'profile') router.navigate('/profile' as never);
   }, [router]);
 
   const activeBottomTab: AdminBottomTab = useMemo(() => {

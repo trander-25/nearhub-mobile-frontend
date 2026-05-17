@@ -155,9 +155,9 @@ export function NotificationsScreen({ organizerMode = false }: NotificationsScre
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleOrganizerTab = useCallback((tab: string) => {
-    if (tab === 'organizer-overview') router.replace('/organizer-overview');
-    else if (tab === 'organizer-manage') router.replace('/organizer-manage');
-    else if (tab === 'profile') router.replace('/profile');
+    if (tab === 'organizer-overview') router.navigate('/organizer-overview' as never);
+    else if (tab === 'organizer-manage') router.navigate('/organizer-manage' as never);
+    else if (tab === 'profile') router.navigate('/profile' as never);
   }, [router]);
 
   const renderItem: ListRenderItem<Notification> = useCallback(

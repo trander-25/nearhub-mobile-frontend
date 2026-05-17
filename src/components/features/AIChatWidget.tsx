@@ -189,6 +189,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primaryDark,
+    borderWidth: 2,
+    borderColor: colors.accent,
     shadowColor: colors.primaryShadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
@@ -211,6 +214,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     gap: spacing.md,
+    borderTopWidth: 1,
+    borderColor: colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -223,7 +228,9 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDark,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
   headerText: {
     flex: 1,
@@ -242,14 +249,16 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   messages: {
     flex: 1,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: colors.background,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   messagesContent: {
     padding: spacing.md,
@@ -273,9 +282,11 @@ const styles = StyleSheet.create({
   assistantBubble: {
     backgroundColor: colors.surface,
     borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   userBubble: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDark,
     borderBottomRightRadius: 6,
   },
   bubbleText: {
@@ -323,6 +334,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primaryDark,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
   sendButtonDisabled: {
     opacity: 0.45,

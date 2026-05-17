@@ -132,11 +132,11 @@ export function SavedScreen() {
   }, [router]);
 
   const handleTabPress = useCallback((tab: string) => {
-    if (tab === 'explore') router.replace('/');
-    else if (tab === 'for-you') router.replace('/?tab=for-you');
-    else if (tab === 'scan-qr') router.replace('/scan-qr');
-    else if (tab === 'myevents') router.replace(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
-    else if (tab === 'profile') router.replace('/profile');
+    if (tab === 'explore') router.navigate('/' as never);
+    else if (tab === 'for-you') router.navigate('/?tab=for-you' as never);
+    else if (tab === 'scan-qr') router.navigate('/scan-qr' as never);
+    else if (tab === 'myevents') router.navigate((isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents') as never);
+    else if (tab === 'profile') router.navigate('/profile' as never);
   }, [isAuthenticated, router, user?.role]);
 
   const visibleEvents = events.filter((e) => likedMap[e.id] !== false);

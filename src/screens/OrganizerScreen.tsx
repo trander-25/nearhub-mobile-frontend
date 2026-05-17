@@ -471,10 +471,10 @@ export function OrganizerScreen({
   }, [resolveSelectedEvent, upsertEvent]);
 
   const handleBottomTab = useCallback((tab: string) => {
-    if (tab === 'organizer-overview') router.replace('/organizer-overview');
-    else if (tab === 'organizer-manage') router.replace('/organizer-manage');
-    else if (tab === 'organizer-notifications') router.replace('/organizer-notifications');
-    else if (tab === 'profile') router.replace('/profile');
+    if (tab === 'organizer-overview') router.navigate('/organizer-overview' as never);
+    else if (tab === 'organizer-manage') router.navigate('/organizer-manage' as never);
+    else if (tab === 'organizer-notifications') router.navigate('/organizer-notifications' as never);
+    else if (tab === 'profile') router.navigate('/profile' as never);
   }, [router]);
 
   const activeBottomTab: OrganizerBottomTab =

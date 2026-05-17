@@ -29,8 +29,7 @@ const pushTransition = {
 } as const;
 
 const tabTransition = {
-  animation: 'fade',
-  animationDuration: 180,
+  animation: 'none',
   gestureEnabled: false,
 } as const;
 

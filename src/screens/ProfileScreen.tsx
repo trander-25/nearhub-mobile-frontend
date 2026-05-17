@@ -84,22 +84,22 @@ export function ProfileScreen() {
 
   const handleTabPress = useCallback((tab: string) => {
     if (isAdmin) {
-      if (tab === 'admin-moderation') router.replace('/admin-moderation');
-      else if (tab === 'admin-users') router.replace('/admin-users');
-      else if (tab === 'admin-broadcast') router.replace('/admin-broadcast');
+      if (tab === 'admin-moderation') router.navigate('/admin-moderation' as never);
+      else if (tab === 'admin-users') router.navigate('/admin-users' as never);
+      else if (tab === 'admin-broadcast') router.navigate('/admin-broadcast' as never);
       return;
     }
     if (isOrganizer) {
-      if (tab === 'organizer-overview') router.replace('/organizer-overview');
-      else if (tab === 'organizer-manage') router.replace('/organizer-manage');
-      else if (tab === 'organizer-notifications') router.replace('/organizer-notifications');
+      if (tab === 'organizer-overview') router.navigate('/organizer-overview' as never);
+      else if (tab === 'organizer-manage') router.navigate('/organizer-manage' as never);
+      else if (tab === 'organizer-notifications') router.navigate('/organizer-notifications' as never);
       return;
     }
-    if (tab === 'explore') router.replace('/');
-    else if (tab === 'for-you') router.replace('/?tab=for-you');
-    else if (tab === 'saved') router.replace('/saved');
-    else if (tab === 'scan-qr') router.replace('/scan-qr');
-    else if (tab === 'myevents') router.replace('/myevents');
+    if (tab === 'explore') router.navigate('/' as never);
+    else if (tab === 'for-you') router.navigate('/?tab=for-you' as never);
+    else if (tab === 'saved') router.navigate('/saved' as never);
+    else if (tab === 'scan-qr') router.navigate('/scan-qr' as never);
+    else if (tab === 'myevents') router.navigate('/myevents' as never);
   }, [isAdmin, isOrganizer, router]);
 
   const handleSignOut = useCallback(() => {

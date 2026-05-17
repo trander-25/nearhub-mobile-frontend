@@ -58,17 +58,17 @@ export function ScanQrScreen() {
 
   const handleTabPress = useCallback(
     (tab: string) => {
-      if (tab === 'explore') router.replace('/');
-      else if (tab === 'for-you') router.replace('/?tab=for-you');
+      if (tab === 'explore') router.navigate('/' as never);
+      else if (tab === 'for-you') router.navigate('/?tab=for-you' as never);
       else if (!isAuthenticated && (tab === 'saved' || tab === 'myevents' || tab === 'profile')) {
         promptSignIn(() => router.push('/login?entry=required' as never));
       }
-      else if (tab === 'saved') router.replace('/saved');
+      else if (tab === 'saved') router.navigate('/saved' as never);
       else if (tab === 'myevents') {
-        router.replace(
-          isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents',
+        router.navigate(
+          (isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents') as never,
         );
-      } else if (tab === 'profile') router.replace('/profile');
+      } else if (tab === 'profile') router.navigate('/profile' as never);
     },
     [isAuthenticated, router, user?.role],
   );

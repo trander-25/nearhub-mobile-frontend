@@ -73,12 +73,12 @@ export function MyEventsScreen() {
   }, [loadEvents]);
 
   const handleTabPress = useCallback((tab: string) => {
-    if (tab === 'explore') router.replace('/');
-    else if (tab === 'for-you') router.replace('/?tab=for-you');
-    else if (tab === 'saved') router.replace('/saved');
-    else if (tab === 'scan-qr') router.replace('/scan-qr');
-    else if (tab === 'profile') router.replace('/profile');
-    else if (tab === 'myevents' && isAuthenticated && isOrganizerRole(user?.role)) router.replace('/organizer-overview');
+    if (tab === 'explore') router.navigate('/' as never);
+    else if (tab === 'for-you') router.navigate('/?tab=for-you' as never);
+    else if (tab === 'saved') router.navigate('/saved' as never);
+    else if (tab === 'scan-qr') router.navigate('/scan-qr' as never);
+    else if (tab === 'profile') router.navigate('/profile' as never);
+    else if (tab === 'myevents' && isAuthenticated && isOrganizerRole(user?.role)) router.navigate('/organizer-overview' as never);
   }, [isAuthenticated, router, user?.role]);
 
   const nowTs = Date.now();

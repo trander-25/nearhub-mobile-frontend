@@ -190,11 +190,11 @@ export function ForYouScreen() {
   }, [isAuthenticated, router]);
 
   const handleTabPress = useCallback((tab: string) => {
-    if (tab === 'explore') router.replace('/');
-    else if (tab === 'saved') router.replace('/saved');
-    else if (tab === 'scan-qr') router.replace('/scan-qr');
-    else if (tab === 'myevents') router.replace(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
-    else if (tab === 'profile') router.replace('/profile');
+    if (tab === 'explore') router.navigate('/' as never);
+    else if (tab === 'saved') router.navigate('/saved' as never);
+    else if (tab === 'scan-qr') router.navigate('/scan-qr' as never);
+    else if (tab === 'myevents') router.navigate((isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents') as never);
+    else if (tab === 'profile') router.navigate('/profile' as never);
   }, [isAuthenticated, router, user?.role]);
 
   const renderItem: ListRenderItem<EventData> = useCallback(({ item }) => (

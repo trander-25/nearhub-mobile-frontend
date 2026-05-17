@@ -570,10 +570,10 @@ export function DiscoverScreen() {
           promptSignIn(() => router.push('/login?entry=required' as never));
           return;
         }
-        if (tab === 'saved') router.replace('/saved');
-        else if (tab === 'scan-qr') router.replace('/scan-qr');
-        else if (tab === 'myevents') router.replace(isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents');
-        else if (tab === 'profile') router.replace('/profile');
+        if (tab === 'saved') router.navigate('/saved' as never);
+        else if (tab === 'scan-qr') router.navigate('/scan-qr' as never);
+        else if (tab === 'myevents') router.navigate((isAuthenticated && isOrganizerRole(user?.role) ? '/organizer-overview' : '/myevents') as never);
+        else if (tab === 'profile') router.navigate('/profile' as never);
       }} />
 
       <FilterModal
