@@ -7,6 +7,7 @@ const androidGoogleMapsApiKey =
 const config: ExpoConfig = {
   name: 'nearhub',
   slug: 'nearhub',
+  owner: 'trander25',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/nearhub-app-icon.png',
@@ -16,6 +17,8 @@ const config: ExpoConfig = {
     icon: './assets/images/nearhub-app-icon.png',
   },
   android: {
+    package: 'com.baxin.nearhub',
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/nearhub-app-icon.png',
@@ -60,6 +63,11 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
+  },
+  extra: {
+    eas: {
+      projectId: '2845b080-7d6d-4c0c-95cb-d05fa68df084',
+    },
   },
 };
 
