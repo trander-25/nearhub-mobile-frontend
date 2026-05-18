@@ -45,13 +45,14 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
   const canSubmit = rating > 0 && comment.trim().length > 0 && !isSubmitting;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
       >
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.xl }]}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Write a Review</Text>
             <Pressable onPress={onClose} hitSlop={12}>
@@ -92,7 +93,7 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
             <Text style={styles.charCount}>{comment.length}/1000</Text>
           </ScrollView>
 
-          <View style={styles.actions}>
+          <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
             <Pressable style={styles.cancelButton} onPress={onClose}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </Pressable>
@@ -126,6 +127,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
+  },
+  backdrop: {
+    flex: 1,
   },
   sheet: {
     backgroundColor: colors.surface,
@@ -188,6 +192,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
+    backgroundColor: colors.surface,
   },
   cancelButton: {
     flex: 1,

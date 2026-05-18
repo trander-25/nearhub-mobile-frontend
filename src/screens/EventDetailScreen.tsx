@@ -4,6 +4,7 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -13,6 +14,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +23,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import QRCode from 'react-native-qrcode-svg';
 
+import { SuccessModal } from '@/components/common';
 import { colors, spacing, typography, fontWeights } from '@/theme';
 import { WriteReviewModal } from '@/components/features';
 import {
@@ -73,6 +76,7 @@ function formatRelativeTime(dateStr: string): string {
 export function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
 
@@ -88,10 +92,13 @@ export function EventDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showReviewSuccessModal, setShowReviewSuccessModal] = useState(false);
   const [isFollowingOrganizer, setIsFollowingOrganizer] = useState(false);
   const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [showShareQrModal, setShowShareQrModal] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -183,6 +190,7 @@ export function EventDetailScreen() {
       }
       await submitReview(id, reviewRating, reviewComment);
       loadDetail();
+      setShowReviewSuccessModal(true);
     },
     [id, isAuthenticated, router],
   );
@@ -280,6 +288,7 @@ export function EventDetailScreen() {
     isLongDescription && !aboutExpanded
       ? descriptionText.slice(0, 200) + '...'
       : descriptionText;
+  const eventImages = event.images?.length ? event.images : [event.imageUrl];
 
   return (
     <View style={styles.screen}>
@@ -297,14 +306,20 @@ export function EventDetailScreen() {
         }
       >
         {/* ====== Hero Section ====== */}
-        <View style={styles.heroSection}>
+        <Pressable
+          style={styles.heroSection}
+          onPress={() => {
+            setActiveImageIndex(0);
+            setShowImageViewer(true);
+          }}
+        >
           <Image source={{ uri: event.imageUrl }} style={styles.heroImage} resizeMode="cover" />
           <LinearGradient
             colors={['rgba(0,0,0,0.2)', 'rgba(251,252,247,0)', colors.background]}
             locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
-        </View>
+        </Pressable>
 
         {/* ====== Content Canvas (overlaps hero by 48px) ====== */}
         <View style={styles.contentCanvas}>
@@ -594,6 +609,53 @@ export function EventDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={showImageViewer}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setShowImageViewer(false)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <FlatList
+            data={eventImages}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={activeImageIndex}
+            keyExtractor={(item, index) => `${item}-${index}`}
+            getItemLayout={(_, index) => ({
+              length: screenWidth,
+              offset: screenWidth * index,
+              index,
+            })}
+            onMomentumScrollEnd={(eventState) => {
+              const nextIndex = Math.round(eventState.nativeEvent.contentOffset.x / screenWidth);
+              setActiveImageIndex(nextIndex);
+            }}
+            renderItem={({ item }) => (
+              <View style={[styles.imageViewerSlide, { width: screenWidth }]}>
+                <Image source={{ uri: item }} style={styles.imageViewerImage} resizeMode="contain" />
+              </View>
+            )}
+          />
+          <View style={[styles.imageViewerTopBar, { paddingTop: insets.top + spacing.sm }]}>
+            <Pressable style={styles.imageViewerCloseButton} onPress={() => setShowImageViewer(false)}>
+              <Feather name="x" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Text style={styles.imageViewerCounter}>
+              {activeImageIndex + 1}/{eventImages.length}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      <SuccessModal
+        visible={showReviewSuccessModal}
+        message="Your review has been posted."
+        onClose={() => setShowReviewSuccessModal(false)}
+      />
     </View>
   );
 }
@@ -1074,5 +1136,41 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: fontWeights.semibold,
     fontSize: typography.bodySmall,
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  imageViewerSlide: {
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageViewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageViewerTopBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+  },
+  imageViewerCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  imageViewerCounter: {
+    color: '#FFFFFF',
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.semibold,
   },
 });

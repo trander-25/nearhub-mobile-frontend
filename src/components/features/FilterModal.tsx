@@ -89,12 +89,13 @@ export function FilterModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
       >
+        <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.xl }]}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Filters</Text>
@@ -204,6 +205,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
+  },
+  backdrop: {
+    flex: 1,
   },
   sheet: {
     backgroundColor: colors.surface,

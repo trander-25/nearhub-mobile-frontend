@@ -3,6 +3,7 @@ export interface EventData {
   title: string;
   description?: string;
   imageUrl: string;
+  images?: string[];
   dateLabel: string;
   address: string;
   city: string;

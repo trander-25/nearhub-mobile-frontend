@@ -17,6 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { SuccessModal } from '@/components/common';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile, updateProfileWithAvatar, type UploadImageInput } from '@/services/userService';
@@ -31,6 +32,7 @@ export function EditProfileScreen() {
   const [selectedAvatar, setSelectedAvatar] = useState<UploadImageInput | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const { refreshControl } = usePullToRefresh(() => {
     setDisplayName(user?.displayName ?? '');
     setSelectedAvatar(null);
@@ -80,9 +82,7 @@ export function EditProfileScreen() {
         ? await updateProfileWithAvatar(payload, selectedAvatar)
         : await updateProfile(payload);
       if (refreshUser) refreshUser(updated);
-      Alert.alert('Success', 'Profile updated.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      setShowSuccessModal(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to update profile.');
     } finally {
@@ -91,78 +91,86 @@ export function EditProfileScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
-    >
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
-          <Feather name="arrow-left" size={20} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <View style={{ width: 36 }} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        refreshControl={refreshControl}
+    <>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
-        {/* Avatar preview */}
-        <View style={styles.avatarSection}>
-          {avatarPreviewUri ? (
-            <Image source={{ uri: avatarPreviewUri }} style={styles.avatar} contentFit="cover" />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Feather name="user" size={48} color={colors.textTertiary} />
-            </View>
-          )}
-          <Pressable style={styles.avatarButton} onPress={handlePickAvatar}>
-            <Feather name="upload" size={16} color="#FFFFFF" />
-            <Text style={styles.avatarButtonText}>Choose photo</Text>
+        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+          <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
+            <Feather name="arrow-left" size={20} color={colors.textPrimary} />
           </Pressable>
+          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <View style={{ width: 36 }} />
         </View>
 
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Feather name="alert-circle" size={16} color={colors.danger} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {/* Display Name */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Display Name</Text>
-          <View style={styles.inputWrapper}>
-            <Feather name="user" size={18} color={colors.textTertiary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your name"
-              placeholderTextColor={colors.textPlaceholder}
-              value={displayName}
-              onChangeText={setDisplayName}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
-          </View>
-        </View>
-
-        {/* Save button */}
-        <Pressable
-          style={[styles.saveButton, (!hasChanges || isSubmitting) && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={!hasChanges || isSubmitting}
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          refreshControl={refreshControl}
         >
-          {isSubmitting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save changes</Text>
-          )}
-        </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <View style={styles.avatarSection}>
+            {avatarPreviewUri ? (
+              <Image source={{ uri: avatarPreviewUri }} style={styles.avatar} contentFit="cover" />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Feather name="user" size={48} color={colors.textTertiary} />
+              </View>
+            )}
+            <Pressable style={styles.avatarButton} onPress={handlePickAvatar}>
+              <Feather name="upload" size={16} color="#FFFFFF" />
+              <Text style={styles.avatarButtonText}>Choose photo</Text>
+            </Pressable>
+          </View>
+
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Feather name="alert-circle" size={16} color={colors.danger} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Display Name</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="user" size={18} color={colors.textTertiary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your name"
+                placeholderTextColor={colors.textPlaceholder}
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+            </View>
+          </View>
+
+          <Pressable
+            style={[styles.saveButton, (!hasChanges || isSubmitting) && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={!hasChanges || isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save changes</Text>
+            )}
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        message="Profile updated."
+        onClose={() => {
+          setShowSuccessModal(false);
+          router.back();
+        }}
+      />
+    </>
   );
 }
 

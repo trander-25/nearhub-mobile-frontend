@@ -1,15 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Feather } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  Animated,
   Pressable,
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,12 +27,17 @@ interface AIChatWidgetProps {
 }
 
 const newMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const FAB_SIZE = 56;
 
 export function AIChatWidget({ eventId }: AIChatWidgetProps) {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const sessionIdRef = useRef(`mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const isKeyboardVisible = useKeyboardVisible();
+  const currentPositionRef = useRef({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const position = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const [visible, setVisible] = useState(false);
   const [draft, setDraft] = useState('');
@@ -46,6 +54,31 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
   const contextLabel = useMemo(() => {
     return eventId ? 'Event assistant' : 'Discovery assistant';
   }, [eventId]);
+
+  const clampFabPosition = useCallback((nextX: number, nextY: number) => {
+    const minX = spacing.sm;
+    const maxX = Math.max(spacing.sm, width - FAB_SIZE - spacing.sm);
+    const minY = insets.top + spacing.lg;
+    const maxY = Math.max(minY, height - FAB_SIZE - Math.max(insets.bottom + spacing.sm, spacing.xl));
+
+    return {
+      x: Math.min(Math.max(nextX, minX), maxX),
+      y: Math.min(Math.max(nextY, minY), maxY),
+    };
+  }, [height, insets.bottom, insets.top, width]);
+
+  useEffect(() => {
+    const initial = clampFabPosition(
+      width - FAB_SIZE - spacing.lg,
+      height - FAB_SIZE - Math.max(insets.bottom + 86, 104),
+    );
+    const next = currentPositionRef.current.x === 0 && currentPositionRef.current.y === 0
+      ? initial
+      : clampFabPosition(currentPositionRef.current.x, currentPositionRef.current.y);
+
+    currentPositionRef.current = next;
+    position.setValue(next);
+  }, [clampFabPosition, height, insets.bottom, insets.top, position, width]);
 
   useEffect(() => {
     if (!visible) return;
@@ -99,28 +132,53 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
     }
   }
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
+      onPanResponderGrant: () => {
+        dragStartRef.current = currentPositionRef.current;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const next = clampFabPosition(
+          dragStartRef.current.x + gestureState.dx,
+          dragStartRef.current.y + gestureState.dy,
+        );
+        currentPositionRef.current = next;
+        position.setValue(next);
+      },
+    }),
+  ).current;
+
   return (
     <>
       {!isKeyboardVisible || visible ? (
-        <Pressable
-          style={[styles.fab, { bottom: Math.max(insets.bottom + 86, 104) }]}
-          onPress={() => setVisible(true)}
+        <Animated.View
+          style={[
+            styles.fab,
+            {
+              transform: position.getTranslateTransform(),
+            },
+          ]}
+          {...panResponder.panHandlers}
         >
-          <Feather name="message-circle" size={22} color="#FFFFFF" />
-        </Pressable>
+          <Pressable style={styles.fabButton} onPress={() => setVisible(true)}>
+            <MaterialCommunityIcons name="robot-happy-outline" size={26} color="#FFFFFF" />
+          </Pressable>
+        </Animated.View>
       ) : null}
 
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
           style={styles.modalRoot}
         >
           <Pressable style={styles.backdrop} onPress={() => setVisible(false)} />
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom || spacing.sm }]}>
             <View style={styles.header}>
               <View style={styles.avatar}>
-                <Feather name="zap" size={17} color="#FFFFFF" />
+                <MaterialCommunityIcons name="robot-outline" size={18} color="#FFFFFF" />
               </View>
               <View style={styles.headerText}>
                 <Text style={styles.title}>Nearhub AI</Text>
@@ -192,15 +250,13 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    right: spacing.lg,
+    left: 0,
+    top: 0,
     zIndex: 40,
     elevation: 40,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     backgroundColor: colors.primaryDark,
     borderWidth: 2,
     borderColor: colors.accent,
@@ -208,6 +264,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
     shadowRadius: 16,
+  },
+  fabButton: {
+    flex: 1,
+    borderRadius: FAB_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalRoot: {
     flex: 1,

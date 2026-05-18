@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { City, Country } from 'country-state-city';
 
+import { SuccessModal } from '@/components/common';
 import { BottomTabBar, OpenStreetMapPicker } from '@/components/features';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -108,6 +109,7 @@ export function OrganizerScreen({
 
   const [eventSearchInput, setEventSearchInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [showEventForm, setShowEventForm] = useState(false);
   const [formMode, setFormMode] = useState<FormMode>('create');
   const [editEventId, setEditEventId] = useState('');
@@ -453,7 +455,7 @@ export function OrganizerScreen({
       setSelectedEventImageFiles([]);
       loadEvents();
       loadStats(true);
-      Alert.alert('Success', formMode === 'create' ? 'Event created successfully.' : 'Event updated successfully.');
+      setSuccessMessage(formMode === 'create' ? 'Event created successfully.' : 'Event updated successfully.');
     } catch (error) {
       Alert.alert('Action failed', error instanceof Error ? error.message : 'Please try again later.');
     } finally {
@@ -658,12 +660,12 @@ export function OrganizerScreen({
 
       <BottomTabBar activeTab={activeBottomTab} onTabPress={handleBottomTab} />
 
-      <Modal visible={showEventForm} transparent animationType="slide" onRequestClose={() => setShowEventForm(false)}>
+        <Modal visible={showEventForm} transparent animationType="slide" onRequestClose={() => setShowEventForm(false)}>
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
-        >
+          >
           <View style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.xl }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{formMode === 'create' ? 'Create Event' : 'Update Event'}</Text>
@@ -935,6 +937,12 @@ export function OrganizerScreen({
           </View>
         </View>
       </Modal>
+
+      <SuccessModal
+        visible={Boolean(successMessage)}
+        message={successMessage}
+        onClose={() => setSuccessMessage('')}
+      />
     </View>
   );
 }

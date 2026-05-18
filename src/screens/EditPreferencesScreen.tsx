@@ -12,6 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { SuccessModal } from '@/components/common';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile } from '@/services/userService';
@@ -58,6 +59,7 @@ export function EditPreferencesScreen() {
     new Set(user?.preferences ?? []),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const { refreshControl } = usePullToRefresh(() => {
     setSelected(new Set(user?.preferences ?? []));
   });
@@ -89,9 +91,7 @@ export function EditPreferencesScreen() {
       if (isOnboarding) {
         router.replace(nextPreferences.length > 0 ? '/?tab=for-you' : '/');
       } else {
-        Alert.alert('Success', 'Preferences updated.', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
+        setShowSuccessModal(true);
       }
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Unable to update.');
@@ -193,6 +193,15 @@ export function EditPreferencesScreen() {
           )}
         </Pressable>
       </View>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        message="Preferences updated."
+        onClose={() => {
+          setShowSuccessModal(false);
+          router.back();
+        }}
+      />
     </View>
   );
 }

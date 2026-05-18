@@ -55,6 +55,7 @@ function toEventCardData(event: ApiEvent): EventData {
     imageUrl:
       event.images?.[0] ??
       'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80',
+    images: event.images?.length ? event.images : undefined,
     dateLabel,
     address: event.location.address,
     city: event.location.city ?? 'Location TBA',

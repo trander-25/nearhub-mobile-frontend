@@ -140,11 +140,10 @@ export function ScanQrScreen() {
             onBarcodeScanned={isNavigating ? undefined : ({ data }) => openEventFromRawValue(data)}
           />
           <View pointerEvents="box-none" style={styles.overlay}>
-            <View pointerEvents="none" style={styles.overlayCenter}>
-              <View style={styles.scanFrame} />
-              <Text style={styles.overlayHint}>Place the QR in the frame to scan</Text>
+            <View pointerEvents="box-none" style={styles.overlayCenter}>
+              <View pointerEvents="none" style={styles.scanFrame} />
+              <Text pointerEvents="none" style={styles.overlayHint}>Place the QR in the frame to scan</Text>
             </View>
-
             <View style={styles.overlayControls}>
               <Pressable
                 style={[styles.overlayButton, isPickingImage && styles.overlayButtonDisabled]}
@@ -154,16 +153,12 @@ export function ScanQrScreen() {
                 {isPickingImage ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Feather name="image" size={18} color="#FFFFFF" />
+                  <Feather name="image" size={20} color="#FFFFFF" />
                 )}
-                <Text style={styles.overlayButtonText}>
-                  {isPickingImage ? 'Scanning...' : 'Library'}
-                </Text>
               </Pressable>
 
               <Pressable style={styles.overlayButton} onPress={handleToggleCameraFacing}>
-                <Feather name="refresh-ccw" size={18} color="#FFFFFF" />
-                <Text style={styles.overlayButtonText}>Rotate</Text>
+                <Feather name="refresh-ccw" size={20} color="#FFFFFF" />
               </Pressable>
             </View>
           </View>
@@ -246,30 +241,25 @@ const styles = StyleSheet.create({
   },
   overlayControls: {
     position: 'absolute',
-    right: spacing.md,
-    bottom: spacing.md,
-    gap: spacing.sm,
+    left: 0,
+    right: 0,
+    bottom: spacing.xl,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.lg,
   },
   overlayButton: {
-    minWidth: 96,
-    flexDirection: 'row',
+    width: 52,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderRadius: 26,
     backgroundColor: 'rgba(0,0,0,0.42)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.28)',
   },
   overlayButtonDisabled: {
     opacity: 0.72,
-  },
-  overlayButtonText: {
-    color: '#FFFFFF',
-    fontSize: typography.bodySmall,
-    fontWeight: fontWeights.semibold,
   },
   permissionCard: {
     marginHorizontal: spacing.xl,
