@@ -1,6 +1,7 @@
 import { AxiosError, create, type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import { Platform } from 'react-native';
 
-const DEFAULT_API_BASE_URL = 'https://nearhub-mobile-backend.onrender.com';
+const LOCAL_API_PORT = 8020;
 const DEFAULT_TIMEOUT_MS = 12000;
 
 let authToken: string | null = null;
@@ -15,7 +16,13 @@ function appendApiPath(url: string): string {
 }
 
 function getApiBaseUrl(): string {
-  return appendApiPath(DEFAULT_API_BASE_URL);
+  const configuredUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (configuredUrl) {
+    return appendApiPath(configuredUrl);
+  }
+
+  const localHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+  return appendApiPath(`http://${localHost}:${LOCAL_API_PORT}`);
 }
 
 function getRequestTimeoutMs(): number {
@@ -84,6 +91,30 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   };
 
   const response = await apiClient.request<T>(config);
+  return response.data;
+}
+
+export async function apiFormRequest<T>(
+  path: string,
+  formData: FormData,
+  options: Omit<RequestOptions, 'body'> = {},
+): Promise<T> {
+  const { method = 'POST', requireAuth = false, optionalAuth = false } = options;
+
+  if (requireAuth && !authToken) {
+    throw new Error('You must be signed in to perform this action.');
+  }
+
+  const response = await apiClient.request<T>({
+    url: path,
+    method,
+    data: formData,
+    skipAuth: !requireAuth && !optionalAuth,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  } as ApiRequestConfig);
+
   return response.data;
 }
 

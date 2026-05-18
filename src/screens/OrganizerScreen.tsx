@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   RefreshControl,
@@ -16,6 +17,7 @@ import {
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { City, Country } from 'country-state-city';
@@ -23,16 +25,17 @@ import { City, Country } from 'country-state-city';
 import { BottomTabBar, OpenStreetMapPicker } from '@/components/features';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  createOrganizerEvent,
+  createOrganizerEventWithImages,
   deleteOrganizerEvent,
   getOrganizerEventAttendees,
   getOrganizerEvents,
   getOrganizerStats,
-  updateOrganizerEvent,
+  updateOrganizerEventWithImages,
 } from '@/services';
 import { getCategories } from '@/services/eventService';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import type { ApiEvent, CategoryItem, EventInputPayload, OrganizerAttendee, OrganizerStats } from '@/types';
+import type { EventImageFileInput, EventMultipartPayload } from '@/services/organizerService';
 
 type OrganizerTab = 'overview' | 'manage';
 type FormMode = 'create' | 'update';
@@ -109,6 +112,7 @@ export function OrganizerScreen({
   const [formMode, setFormMode] = useState<FormMode>('create');
   const [editEventId, setEditEventId] = useState('');
   const [formData, setFormData] = useState<EventInputPayload>(defaultForm);
+  const [selectedEventImageFiles, setSelectedEventImageFiles] = useState<EventImageFileInput[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [mapCoordinate, setMapCoordinate] = useState({ latitude: defaultForm.lat, longitude: defaultForm.lng });
@@ -261,6 +265,7 @@ export function OrganizerScreen({
     setCountryInput('');
     setCityInput('');
     setSelectedCountryIso('');
+    setSelectedEventImageFiles([]);
     setShowEventForm(true);
   }, [categories]);
 
@@ -288,8 +293,36 @@ export function OrganizerScreen({
     setCountryInput('');
     setCityInput(selected.location.city ?? '');
     setSelectedCountryIso('');
+    setSelectedEventImageFiles([]);
     setShowEventForm(true);
   }, [resolveSelectedEvent]);
+
+  const pickEventImages = useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Please allow photo library access to choose event images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 20,
+      quality: 0.85,
+      orderedSelection: true,
+    });
+
+    if (result.canceled || !result.assets.length) return;
+
+    setSelectedEventImageFiles((prev) => [
+      ...prev,
+      ...result.assets.map((asset) => ({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+      })),
+    ].slice(0, 20));
+  }, []);
 
   const openDateTimePicker = useCallback((field: DateField, mode: DateMode) => {
     setPickerField(field);
@@ -360,7 +393,7 @@ export function OrganizerScreen({
 
     setIsSubmitting(true);
     try {
-      const normalizedPayload: EventInputPayload = {
+      const normalizedPayload: EventMultipartPayload = {
         ...formData,
         title: formData.title.trim(),
         description: formData.description.trim(),
@@ -369,18 +402,19 @@ export function OrganizerScreen({
         startAt: formData.startAt.trim(),
         endAt: formData.endAt?.trim() || undefined,
         images: formData.images?.filter(Boolean),
+        imageFiles: selectedEventImageFiles,
       };
 
       let response: ApiEvent;
       if (formMode === 'create') {
-        response = await createOrganizerEvent(normalizedPayload);
+        response = await createOrganizerEventWithImages(normalizedPayload);
       } else {
         const original = events.find((item) => item.id === editEventId);
         if (!original) {
           throw new Error('Event not found. Please reopen edit form and try again.');
         }
 
-        const updatePayload: Partial<EventInputPayload> = {};
+        const updatePayload: Partial<EventMultipartPayload> = {};
 
         if (normalizedPayload.title !== original.title) updatePayload.title = normalizedPayload.title;
         if (normalizedPayload.description !== (original.description ?? '')) updatePayload.description = normalizedPayload.description;
@@ -400,17 +434,23 @@ export function OrganizerScreen({
           updatePayload.images = nextImages;
         }
 
+        if (selectedEventImageFiles.length > 0) {
+          updatePayload.images = nextImages;
+          updatePayload.imageFiles = selectedEventImageFiles;
+        }
+
         if (Object.keys(updatePayload).length === 0) {
           Alert.alert('No changes', 'Update at least one field before submitting.');
           return;
         }
 
-        response = await updateOrganizerEvent(editEventId, updatePayload);
+        response = await updateOrganizerEventWithImages(editEventId, updatePayload);
       }
 
       upsertEvent(response);
       setEventSearchInput(response.title);
       setShowEventForm(false);
+      setSelectedEventImageFiles([]);
       loadEvents();
       loadStats(true);
       Alert.alert('Success', formMode === 'create' ? 'Event created successfully.' : 'Event updated successfully.');
@@ -419,7 +459,7 @@ export function OrganizerScreen({
     } finally {
       setIsSubmitting(false);
     }
-  }, [editEventId, events, formData, formMode, loadEvents, loadStats, upsertEvent]);
+  }, [editEventId, events, formData, formMode, loadEvents, loadStats, selectedEventImageFiles, upsertEvent]);
 
   const deleteEvent = useCallback((event?: ApiEvent) => {
     const targetEvent = event ?? resolveSelectedEvent();
@@ -619,7 +659,11 @@ export function OrganizerScreen({
       <BottomTabBar activeTab={activeBottomTab} onTabPress={handleBottomTab} />
 
       <Modal visible={showEventForm} transparent animationType="slide" onRequestClose={() => setShowEventForm(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
+        >
           <View style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.xl }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{formMode === 'create' ? 'Create Event' : 'Update Event'}</Text>
@@ -627,7 +671,11 @@ export function OrganizerScreen({
                 <Feather name="x" size={20} color={colors.textPrimary} />
               </Pressable>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            >
               <Text style={styles.label}>Title</Text>
               <TextInput style={styles.input} value={formData.title} onChangeText={(v) => setFormData((p) => ({ ...p, title: v }))} />
               <Text style={styles.label}>Description</Text>
@@ -756,19 +804,35 @@ export function OrganizerScreen({
               >
                 <Text style={styles.clearEndButtonText}>Clear end time</Text>
               </Pressable>
-              <Text style={styles.label}>Image URLs (comma separated)</Text>
-              <TextInput
-                style={styles.input}
-                value={(formData.images || []).join(', ')}
-                onChangeText={(v) => setFormData((p) => ({ ...p, images: v.split(',').map((s) => s.trim()).filter(Boolean) }))}
-                autoCapitalize="none"
-              />
+              <Text style={styles.label}>Event images</Text>
+              <Pressable style={styles.imageUploadButton} onPress={pickEventImages}>
+                <Feather name="upload" size={14} color={colors.primary} />
+                <Text style={styles.imageUploadText}>Choose photos</Text>
+              </Pressable>
+              {selectedEventImageFiles.length > 0 ? (
+                <View style={styles.selectedImageList}>
+                  {selectedEventImageFiles.map((file, index) => (
+                    <View key={`${file.uri}-${index}`} style={styles.selectedImageRow}>
+                      <Feather name="image" size={14} color={colors.textSecondary} />
+                      <Text style={styles.selectedImageName} numberOfLines={1}>
+                        {file.fileName || `Image ${index + 1}`}
+                      </Text>
+                      <Pressable
+                        onPress={() => setSelectedEventImageFiles((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                        hitSlop={8}
+                      >
+                        <Feather name="x" size={14} color={colors.danger} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               <Pressable style={[styles.primaryButton, styles.modalSubmit]} onPress={submitEvent} disabled={isSubmitting}>
                 <Text style={styles.primaryButtonText}>{isSubmitting ? 'Submitting...' : 'Submit'}</Text>
               </Pressable>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {isDatePickerVisible && pickerField ? (
@@ -1017,6 +1081,43 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     fontSize: typography.caption,
     textDecorationLine: 'underline',
+  },
+  imageUploadButton: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  imageUploadText: {
+    color: colors.primary,
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.semibold,
+  },
+  selectedImageList: {
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  selectedImageRow: {
+    minHeight: 36,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  selectedImageName: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: typography.caption,
   },
   multiline: { minHeight: 90, textAlignVertical: 'top' },
   actionRow: { flexDirection: 'row', gap: spacing.sm },

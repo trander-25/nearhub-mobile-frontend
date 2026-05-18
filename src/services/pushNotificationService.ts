@@ -97,15 +97,15 @@ export async function getPushRegistrationContext(): Promise<{ deviceId: string; 
     return { deviceId };
   }
 
-  const projectId =
-    Constants.expoConfig?.extra?.eas?.projectId ??
-    Constants.easConfig?.projectId;
+  if (Platform.OS !== 'android') {
+    return { deviceId };
+  }
 
-  const token = await Notifications.getExpoPushTokenAsync(
-    projectId ? { projectId } : undefined,
-  );
+  const token = await Notifications.getDevicePushTokenAsync();
 
-  return { deviceId, fcmToken: token.data };
+  return typeof token.data === 'string'
+    ? { deviceId, fcmToken: token.data }
+    : { deviceId };
 }
 
 export async function syncPushTokenWithBackend(): Promise<void> {

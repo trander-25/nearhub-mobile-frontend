@@ -12,13 +12,14 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile } from '@/services/userService';
+import { updateProfile, updateProfileWithAvatar, type UploadImageInput } from '@/services/userService';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export function EditProfileScreen() {
@@ -27,18 +28,44 @@ export function EditProfileScreen() {
   const { user, refreshUser } = useAuth();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
+  const [selectedAvatar, setSelectedAvatar] = useState<UploadImageInput | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const { refreshControl } = usePullToRefresh(() => {
     setDisplayName(user?.displayName ?? '');
-    setAvatarUrl(user?.avatarUrl ?? '');
+    setSelectedAvatar(null);
     setError('');
   });
 
   const hasChanges =
     displayName.trim() !== (user?.displayName ?? '') ||
-    avatarUrl.trim() !== (user?.avatarUrl ?? '');
+    Boolean(selectedAvatar);
+
+  const avatarPreviewUri = selectedAvatar?.uri ?? user?.avatarUrl ?? '';
+
+  async function handlePickAvatar() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Please allow photo library access to choose an avatar.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    setSelectedAvatar({
+      uri: asset.uri,
+      fileName: asset.fileName,
+      mimeType: asset.mimeType,
+    });
+  }
 
   async function handleSave() {
     if (isSubmitting || !hasChanges) return;
@@ -46,10 +73,12 @@ export function EditProfileScreen() {
     setIsSubmitting(true);
 
     try {
-      const updated = await updateProfile({
+      const payload = {
         displayName: displayName.trim() || undefined,
-        avatarUrl: avatarUrl.trim() || null,
-      });
+      };
+      const updated = selectedAvatar
+        ? await updateProfileWithAvatar(payload, selectedAvatar)
+        : await updateProfile(payload);
       if (refreshUser) refreshUser(updated);
       Alert.alert('Success', 'Profile updated.', [
         { text: 'OK', onPress: () => router.back() },
@@ -64,7 +93,8 @@ export function EditProfileScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
@@ -77,17 +107,22 @@ export function EditProfileScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         refreshControl={refreshControl}
       >
         {/* Avatar preview */}
         <View style={styles.avatarSection}>
-          {avatarUrl.trim() ? (
-            <Image source={{ uri: avatarUrl.trim() }} style={styles.avatar} contentFit="cover" />
+          {avatarPreviewUri ? (
+            <Image source={{ uri: avatarPreviewUri }} style={styles.avatar} contentFit="cover" />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
               <Feather name="user" size={48} color={colors.textTertiary} />
             </View>
           )}
+          <Pressable style={styles.avatarButton} onPress={handlePickAvatar}>
+            <Feather name="upload" size={16} color="#FFFFFF" />
+            <Text style={styles.avatarButtonText}>Choose photo</Text>
+          </Pressable>
         </View>
 
         {error ? (
@@ -112,25 +147,6 @@ export function EditProfileScreen() {
               returnKeyType="next"
             />
           </View>
-        </View>
-
-        {/* Avatar URL */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Avatar URL</Text>
-          <View style={styles.inputWrapper}>
-            <Feather name="image" size={18} color={colors.textTertiary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="https://example.com/avatar.jpg"
-              placeholderTextColor={colors.textPlaceholder}
-              value={avatarUrl}
-              onChangeText={setAvatarUrl}
-              autoCapitalize="none"
-              keyboardType="url"
-              returnKeyType="done"
-            />
-          </View>
-          <Text style={styles.hint}>Paste an image URL from the web</Text>
         </View>
 
         {/* Save button */}
@@ -194,6 +210,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarButton: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  avatarButtonText: {
+    color: '#FFFFFF',
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.semibold,
+  },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,12 +266,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     color: colors.textPrimary,
     height: '100%',
-  },
-  hint: {
-    fontSize: typography.caption,
-    color: colors.textTertiary,
-    marginTop: spacing.xs,
-    marginLeft: spacing.xs,
   },
   saveButton: {
     backgroundColor: colors.primary,

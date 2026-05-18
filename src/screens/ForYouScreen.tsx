@@ -32,6 +32,15 @@ function hasCoordinates(location: LocationState) {
   return typeof location.lat === 'number' && typeof location.lng === 'number';
 }
 
+function shuffleEvents<T>(items: T[]): T[] {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 export function ForYouScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -104,14 +113,6 @@ export function ForYouScreen() {
   }, []);
 
   const loadEvents = useCallback(async (pageNum: number, reset: boolean) => {
-    if (!hasPreferences) {
-      setEvents([]);
-      setIsLoading(false);
-      setIsLoadingMore(false);
-      setIsRefreshing(false);
-      return;
-    }
-
     if (isResolvingLocation) return;
 
     if (reset && !isRefreshing) setIsLoading(true);
@@ -120,18 +121,19 @@ export function ForYouScreen() {
     try {
       const canUseCoordinates = hasCoordinates(locationState);
       const result = await searchEvents({
-        categories: preferences,
+        categories: hasPreferences ? preferences : undefined,
         lat: canUseCoordinates ? locationState.lat : undefined,
         lng: canUseCoordinates ? locationState.lng : undefined,
-        sortBy: canUseCoordinates ? 'distance' : 'startAt',
+        sortBy: canUseCoordinates ? 'distance' : 'random',
         page: pageNum,
         limit: 20,
       });
+      const nextEvents = canUseCoordinates ? result.events : shuffleEvents(result.events);
 
       if (reset) {
-        setEvents(result.events);
+        setEvents(nextEvents);
       } else {
-        setEvents((prev) => [...prev, ...result.events]);
+        setEvents((prev) => [...prev, ...nextEvents]);
       }
       setTotalPages(result.totalPages);
       setError(null);
@@ -221,7 +223,7 @@ export function ForYouScreen() {
           <View style={styles.locationRow}>
             <Feather name="navigation" size={11} color={colors.textSecondary} />
             <Text style={styles.locationText}>
-              {isResolvingLocation ? 'Finding nearby events...' : locationState.label ?? 'Sorted by soonest'}
+              {isResolvingLocation ? 'Finding nearby events...' : locationState.label ?? 'Showing mixed events'}
             </Text>
           </View>
         </View>
@@ -276,12 +278,12 @@ export function ForYouScreen() {
             <View style={styles.emptyContainer}>
               <Feather name={hasPreferences ? 'heart' : 'sliders'} size={48} color={colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {hasPreferences ? 'No matches yet' : 'Choose your interests'}
+                {hasPreferences ? 'No matches yet' : 'No events yet'}
               </Text>
               <Text style={styles.emptySubtext}>
                 {hasPreferences
                   ? 'Try adding more interests or check back when organizers publish new events.'
-                  : 'Select event types you like so this tab can show a nearby personalized feed.'}
+                  : 'Pick interests to personalize this feed, or check back when organizers publish new events.'}
               </Text>
               <Pressable
                 style={styles.primaryButton}

@@ -16,7 +16,6 @@ const PUBLIC_GUEST_ROUTES = new Set<string | undefined>([
   'for-you',
   'event',
   'map',
-  'manual-location',
   'scan-qr',
 ]);
 
@@ -171,7 +170,6 @@ function AuthGate() {
         <Stack.Screen name="event/[id]" />
         <Stack.Screen name="map" />
         <Stack.Screen name="notifications" />
-        <Stack.Screen name="manual-location" />
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="edit-preferences" />
       </Stack>

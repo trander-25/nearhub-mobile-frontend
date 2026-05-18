@@ -19,6 +19,7 @@ const config: ExpoConfig = {
   android: {
     package: 'com.baxin.nearhub',
     googleServicesFile: './google-services.json',
+    softwareKeyboardLayoutMode: 'pan',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/nearhub-app-icon.png',
@@ -43,19 +44,31 @@ const config: ExpoConfig = {
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#208AEF',
+        backgroundColor: '#FFFFFF',
         android: {
-          image: './assets/images/nearhub-app-icon.png',
+          image: './assets/images/nearhub-app-icon-rounded.png',
           imageWidth: 76,
         },
         ios: {
-          image: './assets/images/nearhub-app-icon.png',
+          image: './assets/images/nearhub-app-icon-rounded.png',
           imageWidth: 76,
         },
       },
     ],
     '@react-native-community/datetimepicker',
     'expo-image',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow NearHub to access your photos so you can upload avatars, event images, and scan QR codes from your library.',
+      },
+    ],
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow NearHub to access your camera to scan event QR codes.',
+      },
+    ],
     'expo-secure-store',
     'expo-notifications',
     'expo-web-browser',

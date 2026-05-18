@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
+  KeyboardAvoidingView,
   Pressable,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -88,7 +90,11 @@ export function FilterModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
+      >
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.xl }]}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Filters</Text>
@@ -102,6 +108,7 @@ export function FilterModal({
             style={styles.body}
             contentContainerStyle={styles.bodyContent}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           >
             <Text style={styles.sectionTitle}>Category</Text>
             <View style={styles.chipWrap}>
@@ -187,7 +194,7 @@ export function FilterModal({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

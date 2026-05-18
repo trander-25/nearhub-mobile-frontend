@@ -15,8 +15,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import * as SecureStore from 'expo-secure-store';
-import { useFocusEffect } from '@react-navigation/native';
 
 import {
   BottomTabBar,
@@ -39,29 +37,20 @@ import type { CategoryItem, EventData } from '@/types';
 import { isOrganizerRole } from '@/utils/role';
 import { promptSignIn } from '@/utils/authPrompt';
 
-const MANUAL_LOCATION_KEY = 'nearhub_manual_location';
-
-interface ManualLocationValue {
-  country: string;
-  city: string;
-  district: string;
-}
-
 const AREA_FILTER = 'Your area';
 const FOR_YOU_FILTER = 'For You';
 const ALL_EVENTS_FILTER = 'All events';
 const DEFAULT_AREA_RADIUS_KM = 100;
 
-type LocationSource = 'current' | 'manual';
 type SortBy = 'distance' | 'startAt' | 'newest' | 'popular';
-type SearchSortBy = 'relevance' | SortBy;
+type SearchSortBy = 'relevance' | SortBy | 'random';
 
 interface LocationState {
   lat?: number;
   lng?: number;
   city?: string;
   district?: string;
-  source?: LocationSource;
+  source?: 'current';
 }
 
 let cachedDiscoverLocation: LocationState | null = null;
@@ -81,12 +70,21 @@ function normalizeRadius(value?: number) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+function shuffleEvents<T>(items: T[]): T[] {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 async function readCurrentLocation(silent = false): Promise<LocationState | null> {
   try {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (permission.status !== 'granted') {
       if (!silent) {
-        Alert.alert('Location access denied', 'You can still choose city/district manually.');
+        Alert.alert('Location access denied', 'We will show a mixed event feed instead.');
       }
       return null;
     }
@@ -171,7 +169,6 @@ export function DiscoverScreen() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
   const [isBootstrappingLocation, setIsBootstrappingLocation] = useState(!didBootstrapDiscoverLocation);
-  const [manualLocation, setManualLocation] = useState<ManualLocationValue | null>(null);
   const preferences = useMemo(() => user?.preferences ?? [], [user?.preferences]);
   const hasPreferences = preferences.length > 0;
 
@@ -214,50 +211,6 @@ export function DiscoverScreen() {
     };
   }, [resolveCurrentLocation]);
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-      (async () => {
-        try {
-          const raw = await SecureStore.getItemAsync(MANUAL_LOCATION_KEY);
-          if (!mounted || !raw) return;
-          const parsed = JSON.parse(raw) as ManualLocationValue;
-          const normalized = {
-            country: parsed.country?.trim() ?? '',
-            city: parsed.city?.trim() ?? '',
-            district: parsed.district?.trim() ?? '',
-          };
-          if (!normalized.city) return;
-          setManualLocation((prev) => {
-            const prevKey = prev ? `${prev.country}|${prev.city}|${prev.district}` : '';
-            const nextKey = `${normalized.country}|${normalized.city}|${normalized.district}`;
-            if (prevKey === nextKey) return prev;
-
-            setLocationState((state) => (
-              state.source === 'current'
-                ? state
-                : {
-                    lat: undefined,
-                    lng: undefined,
-                    city: normalized.city,
-                    district: normalized.district || undefined,
-                    source: 'manual',
-                  }
-            ));
-            return normalized;
-          });
-        } catch {
-          // ignore parse/storage errors
-        }
-      })();
-
-      return () => {
-        mounted = false;
-      };
-    }, []),
-  );
-
-
   async function loadUserLikes() {
     try {
       const data = await getMyEvents();
@@ -294,10 +247,9 @@ export function DiscoverScreen() {
       const radius = normalizeRadius(filterState.radius);
       const selectedSort = (filterState.sortBy as SortBy | undefined) ?? (isAreaMode ? 'distance' : 'startAt');
       const cityFilter = normalizeOptionalText(filterState.city);
-      const manualCity = locationState.source === 'manual' ? normalizeOptionalText(locationState.city) : undefined;
-      const effectiveCity = cityFilter ?? manualCity;
       const selectedTopics = filterState.topics ?? [];
       const singleTopic = selectedTopics.length === 1 ? selectedTopics[0] : undefined;
+      const multiTopicCategories = selectedTopics.length > 1 ? selectedTopics : undefined;
       const categoryFilter = isAreaMode || isAllEventsMode || isForYouMode ? undefined : selectedCategory;
       const effectiveCategory = singleTopic ?? categoryFilter;
 
@@ -307,7 +259,7 @@ export function DiscoverScreen() {
           categories: hasPreferences ? preferences : undefined,
           lat: canUseCoordinates ? locationState.lat : undefined,
           lng: canUseCoordinates ? locationState.lng : undefined,
-          sortBy: canUseCoordinates ? 'distance' : 'startAt',
+          sortBy: canUseCoordinates ? 'distance' : 'random',
           page: pageNum,
           limit: 20,
         });
@@ -317,6 +269,7 @@ export function DiscoverScreen() {
           lng: locationState.lng!,
           keyword: query || undefined,
           category: effectiveCategory,
+          categories: multiTopicCategories,
           sortBy: selectedSort,
           radius: radius ?? DEFAULT_AREA_RADIUS_KM,
           page: pageNum,
@@ -324,12 +277,17 @@ export function DiscoverScreen() {
         });
       } else {
         const searchSort: SearchSortBy =
-          selectedSort === 'distance' && !canUseCoordinates ? 'startAt' : selectedSort;
+          isAreaMode && !canUseCoordinates
+            ? 'random'
+            : selectedSort === 'distance' && !canUseCoordinates
+              ? 'startAt'
+              : selectedSort;
 
         result = await searchEvents({
           keyword: query || undefined,
           category: effectiveCategory,
-          city: isAllEventsMode ? undefined : effectiveCity,
+          categories: multiTopicCategories,
+          city: isAllEventsMode ? undefined : cityFilter,
           sortBy: searchSort,
           radius: canUseCoordinates && !isAllEventsMode ? radius : undefined,
           lat: canUseCoordinates && !isAllEventsMode ? locationState.lat : undefined,
@@ -343,11 +301,15 @@ export function DiscoverScreen() {
         selectedTopics.length > 1
           ? result.events.filter((event) => selectedTopics.includes(event.category))
           : result.events;
+      const nextEvents =
+        !canUseCoordinates && (isForYouMode || isAreaMode)
+          ? shuffleEvents(topicFilteredEvents)
+          : topicFilteredEvents;
 
       if (reset) {
-        setEvents(topicFilteredEvents);
+        setEvents(nextEvents);
       } else {
-        setEvents((prev) => [...prev, ...topicFilteredEvents]);
+        setEvents((prev) => [...prev, ...nextEvents]);
       }
       setTotalPages(result.totalPages);
       setError(null);
@@ -430,17 +392,11 @@ export function DiscoverScreen() {
 
   const locationLabel = locationState.source === 'current'
     ? (
-        locationState.district
-          ? `${locationState.district}, ${locationState.city ?? 'Current location'}`
-          : locationState.city ?? 'Current location'
-      )
-    : (locationState.city ?? filterState.city ?? 'Tap to set location');
-
-  const manualLocationLabel = useMemo(() => {
-    if (!manualLocation) return '';
-    const parts = [manualLocation.district, manualLocation.city, manualLocation.country].filter(Boolean);
-    return parts.join(', ');
-  }, [manualLocation]);
+      locationState.district
+        ? `${locationState.district}, ${locationState.city ?? 'Current location'}`
+        : locationState.city ?? 'Current location'
+    )
+    : 'Set location';
 
   const handleUseCurrentLocation = useCallback(async () => {
     setIsResolvingLocation(true);
@@ -609,23 +565,6 @@ export function DiscoverScreen() {
               )}
               <Text style={styles.currentLocationText}>Use current location</Text>
             </Pressable>
-            <Pressable
-              style={styles.manualTrigger}
-              onPress={() => {
-                setShowLocationPicker(false);
-                setTimeout(() => {
-                  router.push('/manual-location' as never);
-                }, 120);
-              }}
-            >
-              <Text style={styles.manualTriggerText}>
-                Choose location manually
-              </Text>
-              <Feather name="chevron-right" size={16} color={colors.primary} />
-            </Pressable>
-            {manualLocationLabel ? (
-              <Text style={styles.manualHintText}>{manualLocationLabel}</Text>
-            ) : null}
           </View>
         </View>
       </Modal>
@@ -756,27 +695,6 @@ const styles = StyleSheet.create({
   currentLocationText: {
     fontSize: typography.bodySmall,
     fontWeight: fontWeights.semibold,
-    color: colors.primary,
-  },
-  manualTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  manualHintText: {
-    fontSize: typography.caption,
-    color: colors.textTertiary,
-    marginBottom: spacing.sm,
-  },
-  manualTriggerText: {
-    fontSize: typography.bodySmall,
-    fontWeight: fontWeights.medium,
     color: colors.primary,
   },
 });

@@ -3,7 +3,10 @@ import { Feather } from '@expo/vector-icons';
 import {
   Pressable,
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -43,7 +46,11 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
+      >
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.xl }]}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Write a Review</Text>
@@ -52,7 +59,12 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
             </Pressable>
           </View>
 
-          <View style={styles.body}>
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          >
             <Text style={styles.label}>Your Rating</Text>
             <View style={styles.starRow}>
               {[1, 2, 3, 4, 5].map((star) => (
@@ -78,7 +90,7 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
               maxLength={1000}
             />
             <Text style={styles.charCount}>{comment.length}/1000</Text>
-          </View>
+          </ScrollView>
 
           <View style={styles.actions}>
             <Pressable style={styles.cancelButton} onPress={onClose}>
@@ -104,7 +116,7 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -136,8 +148,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   body: {
+    flexGrow: 0,
+    maxHeight: 360,
+  },
+  bodyContent: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
     gap: spacing.md,
   },
   label: {

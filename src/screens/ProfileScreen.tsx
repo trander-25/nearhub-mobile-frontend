@@ -164,9 +164,6 @@ export function ProfileScreen() {
                 <Feather name="user" size={48} color={colors.textTertiary} />
               </View>
             )}
-            <View style={styles.avatarEditBtn}>
-              <Feather name="edit-2" size={11} color="#FFFFFF" />
-            </View>
           </View>
 
           <Text style={styles.displayName}>{displayUser?.displayName ?? 'User'}</Text>
@@ -511,22 +508,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarEditBtn: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   displayName: {
     fontSize: 30,

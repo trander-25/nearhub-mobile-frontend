@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { sendAiChatMessage } from '@/services';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import type { ChatMessageItem } from '@/types';
@@ -28,6 +29,7 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const sessionIdRef = useRef(`mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const isKeyboardVisible = useKeyboardVisible();
 
   const [visible, setVisible] = useState(false);
   const [draft, setDraft] = useState('');
@@ -99,16 +101,19 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
 
   return (
     <>
-      <Pressable
-        style={[styles.fab, { bottom: Math.max(insets.bottom + 86, 104) }]}
-        onPress={() => setVisible(true)}
-      >
-        <Feather name="message-circle" size={22} color="#FFFFFF" />
-      </Pressable>
+      {!isKeyboardVisible || visible ? (
+        <Pressable
+          style={[styles.fab, { bottom: Math.max(insets.bottom + 86, 104) }]}
+          onPress={() => setVisible(true)}
+        >
+          <Feather name="message-circle" size={22} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
 
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
           style={styles.modalRoot}
         >
           <Pressable style={styles.backdrop} onPress={() => setVisible(false)} />
@@ -126,7 +131,13 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
               </Pressable>
             </View>
 
-            <ScrollView ref={scrollRef} style={styles.messages} contentContainerStyle={styles.messagesContent}>
+            <ScrollView
+              ref={scrollRef}
+              style={styles.messages}
+              contentContainerStyle={styles.messagesContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            >
               {messages.map((message) => {
                 const isUser = message.role === 'user';
                 return (
@@ -161,6 +172,7 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
                 multiline
                 style={styles.input}
                 editable={!isThinking}
+                onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
               />
               <Pressable
                 style={[styles.sendButton, (!draft.trim() || isThinking) && styles.sendButtonDisabled]}
