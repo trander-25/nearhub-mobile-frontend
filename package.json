@@ -15,6 +15,7 @@
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/elements": "^2.9.10",
     "@react-navigation/native": "^7.1.33",
+    "axios": "^1.13.2",
     "country-state-city": "^3.2.1",
     "expo": "~55.0.24",
     "expo-camera": "~55.0.18",
