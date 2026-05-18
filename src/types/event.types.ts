@@ -109,7 +109,7 @@ export interface SearchQueryParams {
   lat?: number;
   lng?: number;
   radius?: number;
-  sortBy?: 'relevance' | 'distance' | 'startAt' | 'newest' | 'popular';
+  sortBy?: 'relevance' | 'distance' | 'startAt' | 'newest' | 'popular' | 'random';
   page?: number;
   limit?: number;
 }

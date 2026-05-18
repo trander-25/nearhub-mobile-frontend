@@ -19,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
-import * as ExpoLinking from 'expo-linking';
 import QRCode from 'react-native-qrcode-svg';
 
 import { colors, spacing, typography, fontWeights } from '@/theme';
@@ -236,15 +235,12 @@ export function EventDetailScreen() {
     }
   }, [event?.organizer?.id, isAuthenticated, isFollowSubmitting, router]);
 
-  const shareLink = id ? ExpoLinking.createURL(`/event/${id}`) : '';
+  const shareLink = id ? `nearhub://event/${id}` : '';
 
   const handleShareLink = useCallback(async () => {
     if (!shareLink) return;
     try {
-      await Share.share({
-        message: `Check out this event on NearHub: ${shareLink}`,
-        url: shareLink,
-      });
+      await Share.share(Platform.OS === 'ios' ? { url: shareLink } : { message: shareLink });
     } catch {
       Alert.alert('Unable to share', 'Please try again.');
     }

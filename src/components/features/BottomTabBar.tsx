@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { colors, spacing, typography, fontWeights } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminRole, isOrganizerRole } from '@/utils/role';
@@ -138,9 +139,12 @@ function TabButton({ tab, isActive, onTabPress }: TabButtonProps) {
 export function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const isKeyboardVisible = useKeyboardVisible();
   const isAdmin = isAdminRole(user?.role);
   const isOrganizer = isOrganizerRole(user?.role);
   const tabItems = isAdmin ? ADMIN_TAB_ITEMS : isOrganizer ? ORGANIZER_TAB_ITEMS : TAB_ITEMS;
+
+  if (isKeyboardVisible) return null;
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>

@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -39,7 +40,9 @@ export function ScanQrScreen() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isPickingImage, setIsPickingImage] = useState(false);
 
   const openEventFromRawValue = useCallback(
     (rawData: string) => {
@@ -73,6 +76,46 @@ export function ScanQrScreen() {
     [isAuthenticated, router, user?.role],
   );
 
+  const handlePickQrFromLibrary = useCallback(async () => {
+    if (isPickingImage || isNavigating) return;
+
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission required', 'Please allow photo library access to choose a QR image.');
+      return;
+    }
+
+    setIsPickingImage(true);
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (result.canceled || !result.assets[0]?.uri) return;
+
+      const scannedResults = await Camera.scanFromURLAsync(result.assets[0].uri, ['qr']);
+      const qrValue = scannedResults[0]?.data;
+
+      if (!qrValue) {
+        Alert.alert('No QR found', 'The selected image does not contain a readable QR code.');
+        return;
+      }
+
+      openEventFromRawValue(qrValue);
+    } catch (error) {
+      Alert.alert('Cannot scan image', error instanceof Error ? error.message : 'Please try another image.');
+    } finally {
+      setIsPickingImage(false);
+    }
+  }, [isNavigating, isPickingImage, openEventFromRawValue]);
+
+  const handleToggleCameraFacing = useCallback(() => {
+    setFacing((current) => (current === 'back' ? 'front' : 'back'));
+  }, []);
+
   if (!permission) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -92,12 +135,37 @@ export function ScanQrScreen() {
         <View style={styles.cameraWrap}>
           <CameraView
             style={styles.camera}
+            facing={facing}
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
             onBarcodeScanned={isNavigating ? undefined : ({ data }) => openEventFromRawValue(data)}
           />
-          <View pointerEvents="none" style={styles.overlay}>
-            <View style={styles.scanFrame} />
-            <Text style={styles.overlayHint}>Place the QR in the frame to scan</Text>
+          <View pointerEvents="box-none" style={styles.overlay}>
+            <View pointerEvents="none" style={styles.overlayCenter}>
+              <View style={styles.scanFrame} />
+              <Text style={styles.overlayHint}>Place the QR in the frame to scan</Text>
+            </View>
+
+            <View style={styles.overlayControls}>
+              <Pressable
+                style={[styles.overlayButton, isPickingImage && styles.overlayButtonDisabled]}
+                onPress={handlePickQrFromLibrary}
+                disabled={isPickingImage}
+              >
+                {isPickingImage ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Feather name="image" size={18} color="#FFFFFF" />
+                )}
+                <Text style={styles.overlayButtonText}>
+                  {isPickingImage ? 'Scanning...' : 'Library'}
+                </Text>
+              </Pressable>
+
+              <Pressable style={styles.overlayButton} onPress={handleToggleCameraFacing}>
+                <Feather name="refresh-ccw" size={18} color="#FFFFFF" />
+                <Text style={styles.overlayButtonText}>Rotate</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       ) : (
@@ -155,6 +223,9 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
+  },
+  overlayCenter: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.16)',
@@ -172,6 +243,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: fontWeights.semibold,
     fontSize: typography.bodySmall,
+  },
+  overlayControls: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.md,
+    gap: spacing.sm,
+  },
+  overlayButton: {
+    minWidth: 96,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
+  overlayButtonDisabled: {
+    opacity: 0.72,
+  },
+  overlayButtonText: {
+    color: '#FFFFFF',
+    fontSize: typography.bodySmall,
+    fontWeight: fontWeights.semibold,
   },
   permissionCard: {
     marginHorizontal: spacing.xl,

@@ -11,6 +11,7 @@
       "icon": "./assets/images/nearhub-app-icon.png"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/nearhub-app-icon.png",
@@ -28,14 +29,20 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#FFFFFF",
           "android": {
-            "image": "./assets/images/splash-icon.png",
+            "image": "./assets/images/nearhub-app-icon-rounded.png",
             "imageWidth": 76
           }
         }
       ],
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow NearHub to access your photos so you can upload avatars, event images, and scan QR codes from your library."
+        }
+      ],
       "expo-notifications",
       [
         "expo-camera",

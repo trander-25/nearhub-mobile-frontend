@@ -1,4 +1,4 @@
-import { apiRequest } from './apiClient';
+import { apiFormRequest, apiRequest } from './apiClient';
 import type {
   ApiEvent,
   EventAttendeesResponse,
@@ -6,6 +6,43 @@ import type {
   OrganizerProfileResponse,
   OrganizerStats,
 } from '@/types';
+import { createFormDataImageFile } from '@/utils/formDataFile';
+
+export interface EventImageFileInput {
+  uri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+}
+
+export type EventMultipartPayload = EventInputPayload & {
+  imageFiles?: EventImageFileInput[];
+}
+
+function appendEventPayload(formData: FormData, payload: Partial<EventMultipartPayload>) {
+  if (payload.title !== undefined) formData.append('title', payload.title);
+  if (payload.description !== undefined) formData.append('description', payload.description);
+  if (payload.category !== undefined) formData.append('category', payload.category);
+  if (payload.lat !== undefined) formData.append('lat', String(payload.lat));
+  if (payload.lng !== undefined) formData.append('lng', String(payload.lng));
+  if (payload.address !== undefined) formData.append('address', payload.address);
+  if (payload.city !== undefined) formData.append('city', payload.city);
+  if (payload.startAt !== undefined) formData.append('startAt', payload.startAt);
+  if (payload.endAt !== undefined) formData.append('endAt', payload.endAt);
+  if (payload.images !== undefined) formData.append('images', JSON.stringify(payload.images));
+
+  payload.imageFiles?.forEach((file, index) => {
+    formData.append('imageFiles', createFormDataImageFile({
+      uri: file.uri,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      fallbackName: `event-image-${index + 1}`,
+    }));
+  });
+}
+
+function hasUploadFiles(payload: Partial<EventMultipartPayload>): boolean {
+  return Boolean(payload.imageFiles?.length);
+}
 
 export async function getOrganizerEvents(): Promise<ApiEvent[]> {
   return apiRequest<ApiEvent[]>('/organizer/events', {
@@ -22,11 +59,42 @@ export async function createOrganizerEvent(payload: EventInputPayload): Promise<
   });
 }
 
+export async function createOrganizerEventWithImages(payload: EventMultipartPayload): Promise<ApiEvent> {
+  if (!hasUploadFiles(payload)) {
+    return createOrganizerEvent(payload);
+  }
+
+  const formData = new FormData();
+  appendEventPayload(formData, payload);
+
+  return apiFormRequest<ApiEvent>('/organizer/events', formData, {
+    method: 'POST',
+    requireAuth: true,
+  });
+}
+
 export async function updateOrganizerEvent(eventId: string, payload: Partial<EventInputPayload>): Promise<ApiEvent> {
   return apiRequest<ApiEvent>(`/organizer/events/${eventId}`, {
     method: 'PUT',
     requireAuth: true,
     body: payload,
+  });
+}
+
+export async function updateOrganizerEventWithImages(
+  eventId: string,
+  payload: Partial<EventMultipartPayload>,
+): Promise<ApiEvent> {
+  if (!hasUploadFiles(payload)) {
+    return updateOrganizerEvent(eventId, payload);
+  }
+
+  const formData = new FormData();
+  appendEventPayload(formData, payload);
+
+  return apiFormRequest<ApiEvent>(`/organizer/events/${eventId}`, formData, {
+    method: 'PUT',
+    requireAuth: true,
   });
 }
 

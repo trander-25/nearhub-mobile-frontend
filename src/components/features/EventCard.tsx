@@ -88,7 +88,7 @@ export function EventCard({
 
         <View style={styles.metaRow}>
           <Feather name="map-pin" size={12} color={colors.textSecondary} />
-          <Text style={styles.metaText} numberOfLines={1}>{location}</Text>
+          <Text style={styles.metaText}>{location}</Text>
         </View>
 
         <View style={styles.footer}>
@@ -193,13 +193,14 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   metaText: {
     color: colors.textSecondary,
     fontSize: typography.bodySmall,
     flex: 1,
+    lineHeight: 20,
   },
   footer: {
     flexDirection: 'row',
