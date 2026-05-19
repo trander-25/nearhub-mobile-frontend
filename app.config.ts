@@ -7,7 +7,7 @@ const androidGoogleMapsApiKey =
 const config: ExpoConfig = {
   name: 'nearhub',
   slug: 'nearhub',
-  owner: 'trander25',
+  owner: 'trander03',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/nearhub-app-icon.png',
@@ -19,7 +19,7 @@ const config: ExpoConfig = {
   android: {
     package: 'com.baxin.nearhub',
     googleServicesFile: './google-services.json',
-    softwareKeyboardLayoutMode: 'pan',
+    softwareKeyboardLayoutMode: 'resize',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/nearhub-app-icon.png',
@@ -77,9 +77,18 @@ const config: ExpoConfig = {
     typedRoutes: true,
     reactCompiler: true,
   },
+  updates: {
+    enabled: true,
+    url: 'https://u.expo.dev/dfd8fa93-2bd5-4782-b884-ec3f981df827',
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 5000,
+  },
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
   extra: {
     eas: {
-      projectId: '2845b080-7d6d-4c0c-95cb-d05fa68df084',
+      projectId: 'dfd8fa93-2bd5-4782-b884-ec3f981df827',
     },
   },
 };

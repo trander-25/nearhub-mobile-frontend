@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Animated,
   Pressable,
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   RefreshControl,
@@ -25,6 +26,7 @@ import { City, Country } from 'country-state-city';
 import { SuccessModal } from '@/components/common';
 import { BottomTabBar, OpenStreetMapPicker } from '@/components/features';
 import { useAuth } from '@/contexts/AuthContext';
+import { useKeyboardLift } from '@/hooks/useKeyboardLift';
 import {
   createOrganizerEventWithImages,
   deleteOrganizerEvent,
@@ -111,6 +113,7 @@ export function OrganizerScreen({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showEventForm, setShowEventForm] = useState(false);
+  const { effectiveKeyboardLift, keyboardLift, windowHeight } = useKeyboardLift(showEventForm);
   const [formMode, setFormMode] = useState<FormMode>('create');
   const [editEventId, setEditEventId] = useState('');
   const [formData, setFormData] = useState<EventInputPayload>(defaultForm);
@@ -519,8 +522,17 @@ export function OrganizerScreen({
     else if (tab === 'profile') router.navigate('/profile' as never);
   }, [router]);
 
+  const closeEventForm = useCallback(() => {
+    Keyboard.dismiss();
+    setShowEventForm(false);
+  }, []);
+
   const activeBottomTab: OrganizerBottomTab =
     activeTab === 'overview' ? 'organizer-overview' : 'organizer-manage';
+  const eventFormMaxHeight = Math.min(
+    Math.round(windowHeight * 0.88),
+    Math.max(360, windowHeight - insets.top - spacing.md - effectiveKeyboardLift),
+  );
 
   const statsCards = useMemo(() => [
     { label: 'Total Events', value: String(stats?.totalEvents ?? 0), icon: 'calendar' as const },
@@ -660,24 +672,21 @@ export function OrganizerScreen({
 
       <BottomTabBar activeTab={activeBottomTab} onTabPress={handleBottomTab} />
 
-        <Modal visible={showEventForm} transparent animationType="slide" onRequestClose={() => setShowEventForm(false)}>
-        <KeyboardAvoidingView
-            style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
-          >
-          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.xl }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{formMode === 'create' ? 'Create Event' : 'Update Event'}</Text>
-              <Pressable onPress={() => setShowEventForm(false)} hitSlop={10}>
-                <Feather name="x" size={20} color={colors.textPrimary} />
-              </Pressable>
-            </View>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            >
+      <Modal visible={showEventForm} transparent animationType="slide" onRequestClose={closeEventForm}>
+        <View style={styles.modalOverlay}>
+          <Animated.View style={{ marginBottom: keyboardLift }}>
+            <View style={[styles.modalSheet, { maxHeight: eventFormMaxHeight, paddingBottom: insets.bottom + spacing.xl }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{formMode === 'create' ? 'Create Event' : 'Update Event'}</Text>
+                <Pressable onPress={closeEventForm} hitSlop={10}>
+                  <Feather name="x" size={20} color={colors.textPrimary} />
+                </Pressable>
+              </View>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+              >
               <Text style={styles.label}>Title</Text>
               <TextInput style={styles.input} value={formData.title} onChangeText={(v) => setFormData((p) => ({ ...p, title: v }))} />
               <Text style={styles.label}>Description</Text>
@@ -832,9 +841,10 @@ export function OrganizerScreen({
               <Pressable style={[styles.primaryButton, styles.modalSubmit]} onPress={submitEvent} disabled={isSubmitting}>
                 <Text style={styles.primaryButtonText}>{isSubmitting ? 'Submitting...' : 'Submit'}</Text>
               </Pressable>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
+              </ScrollView>
+            </View>
+          </Animated.View>
+        </View>
       </Modal>
 
       {isDatePickerVisible && pickerField ? (
@@ -1166,7 +1176,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
-    maxHeight: '88%',
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   modalTitle: { fontSize: typography.heading, fontWeight: fontWeights.bold, color: colors.textPrimary },

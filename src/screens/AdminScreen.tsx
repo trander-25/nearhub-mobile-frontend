@@ -4,6 +4,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -180,7 +182,11 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
   }, [authUser?.id, users]);
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
       <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
         <Text style={styles.headerTitle}>Admin Console</Text>
         <Text style={styles.headerSubtitle}>Moderate events, manage users, and send announcements</Text>
@@ -205,6 +211,8 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
           data={pendingEvents}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 110 }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           refreshControl={
             <RefreshControl
               refreshing={eventsRefreshing}
@@ -302,6 +310,8 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
           <FlatList
             data={visibleUsers}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             refreshControl={
               <RefreshControl
                 refreshing={usersLoading}
@@ -359,6 +369,8 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
       {activeTab === 'broadcast' ? (
         <ScrollView
           contentContainerStyle={[styles.broadcastWrap, { paddingBottom: insets.bottom + 110 }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           refreshControl={
             <RefreshControl
               refreshing={broadcastRefreshing}
@@ -405,7 +417,7 @@ export function AdminScreen({ initialTab = 'moderation', hideSegmentControl = fa
       ) : null}
 
       <BottomTabBar activeTab={activeBottomTab} onTabPress={handleBottomTab} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

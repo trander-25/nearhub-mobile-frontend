@@ -16,7 +16,7 @@ function appendApiPath(url: string): string {
 }
 
 function getApiBaseUrl(): string {
-  const configuredUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  const configuredUrl = 'https://nearhub-afbaz.ondigitalocean.app'?.trim();
   if (configuredUrl) {
     return appendApiPath(configuredUrl);
   }

@@ -4,7 +4,7 @@ import {
   Animated,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   PanResponder,
   Platform,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
+import { useKeyboardState } from '@/hooks/useKeyboardState';
 import { sendAiChatMessage } from '@/services';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import type { ChatMessageItem } from '@/types';
@@ -34,7 +34,9 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
   const { width, height } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const sessionIdRef = useRef(`mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const isKeyboardVisible = useKeyboardVisible();
+  const keyboard = useKeyboardState();
+  const keyboardLift = useRef(new Animated.Value(0)).current;
+  const baselineWindowHeightRef = useRef(height);
   const currentPositionRef = useRef({ x: 0, y: 0 });
   const dragStartRef = useRef({ x: 0, y: 0 });
   const position = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -54,6 +56,38 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
   const contextLabel = useMemo(() => {
     return eventId ? 'Event assistant' : 'Discovery assistant';
   }, [eventId]);
+
+  useEffect(() => {
+    if (!keyboard.isVisible) {
+      baselineWindowHeightRef.current = Math.max(baselineWindowHeightRef.current, height);
+    }
+  }, [height, keyboard.isVisible]);
+
+  const nativeResizeDelta = baselineWindowHeightRef.current - height;
+  const androidWindowAlreadyResized =
+    Platform.OS === 'android' &&
+    keyboard.isVisible &&
+    keyboard.height > 0 &&
+    nativeResizeDelta > Math.min(120, keyboard.height * 0.45);
+  const keyboardLiftTarget = keyboard.isVisible
+    ? Math.max(0, keyboard.height - (Platform.OS === 'ios' ? insets.bottom : 0))
+    : 0;
+  const effectiveKeyboardLift = androidWindowAlreadyResized ? 0 : keyboardLiftTarget;
+  const availableSheetHeight = Math.max(280, height - insets.top - spacing.md - effectiveKeyboardLift);
+  const sheetMaxHeight = Math.min(Math.round(height * 0.82), availableSheetHeight);
+  const sheetMinHeight = Math.min(460, sheetMaxHeight);
+  const sheetHeightStyle = {
+    maxHeight: sheetMaxHeight,
+    minHeight: sheetMinHeight,
+  };
+
+  useEffect(() => {
+    Animated.timing(keyboardLift, {
+      toValue: effectiveKeyboardLift,
+      duration: keyboard.isVisible ? 220 : 180,
+      useNativeDriver: false,
+    }).start();
+  }, [effectiveKeyboardLift, keyboard.isVisible, keyboardLift]);
 
   const clampFabPosition = useCallback((nextX: number, nextY: number) => {
     const minX = spacing.sm;
@@ -85,6 +119,17 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
     const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
     return () => clearTimeout(timer);
   }, [messages, isThinking, visible]);
+
+  useEffect(() => {
+    if (!visible || !keyboard.isVisible) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 90);
+    return () => clearTimeout(timer);
+  }, [keyboard.isVisible, visible]);
+
+  const handleClose = useCallback(() => {
+    Keyboard.dismiss();
+    setVisible(false);
+  }, []);
 
   async function handleSend() {
     const text = draft.trim();
@@ -152,7 +197,7 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
 
   return (
     <>
-      {!isKeyboardVisible || visible ? (
+      {!keyboard.isVisible || visible ? (
         <Animated.View
           style={[
             styles.fab,
@@ -168,80 +213,78 @@ export function AIChatWidget({ eventId }: AIChatWidgetProps) {
         </Animated.View>
       ) : null}
 
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
-          style={styles.modalRoot}
-        >
-          <Pressable style={styles.backdrop} onPress={() => setVisible(false)} />
-          <View style={[styles.sheet, { paddingBottom: insets.bottom || spacing.sm }]}>
-            <View style={styles.header}>
-              <View style={styles.avatar}>
-                <MaterialCommunityIcons name="robot-outline" size={18} color="#FFFFFF" />
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.backdrop} onPress={handleClose} />
+          <Animated.View style={{ marginBottom: keyboardLift }}>
+            <View style={[styles.sheet, sheetHeightStyle, { paddingBottom: insets.bottom || spacing.sm }]}>
+              <View style={styles.header}>
+                <View style={styles.avatar}>
+                  <MaterialCommunityIcons name="robot-outline" size={18} color="#FFFFFF" />
+                </View>
+                <View style={styles.headerText}>
+                  <Text style={styles.title}>Nearhub AI</Text>
+                  <Text style={styles.subtitle}>{contextLabel}</Text>
+                </View>
+                <Pressable style={styles.closeButton} onPress={handleClose} hitSlop={10}>
+                  <Feather name="x" size={20} color={colors.textPrimary} />
+                </Pressable>
               </View>
-              <View style={styles.headerText}>
-                <Text style={styles.title}>Nearhub AI</Text>
-                <Text style={styles.subtitle}>{contextLabel}</Text>
-              </View>
-              <Pressable style={styles.closeButton} onPress={() => setVisible(false)} hitSlop={10}>
-                <Feather name="x" size={20} color={colors.textPrimary} />
-              </Pressable>
-            </View>
 
-            <ScrollView
-              ref={scrollRef}
-              style={styles.messages}
-              contentContainerStyle={styles.messagesContent}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            >
-              {messages.map((message) => {
-                const isUser = message.role === 'user';
-                return (
-                  <View
-                    key={message.id}
-                    style={[styles.messageRow, isUser ? styles.userMessageRow : styles.assistantMessageRow]}
-                  >
-                    <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-                      <Text style={[styles.bubbleText, isUser ? styles.userBubbleText : styles.assistantBubbleText]}>
-                        {message.content}
-                      </Text>
+              <ScrollView
+                ref={scrollRef}
+                style={styles.messages}
+                contentContainerStyle={styles.messagesContent}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+              >
+                {messages.map((message) => {
+                  const isUser = message.role === 'user';
+                  return (
+                    <View
+                      key={message.id}
+                      style={[styles.messageRow, isUser ? styles.userMessageRow : styles.assistantMessageRow]}
+                    >
+                      <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
+                        <Text style={[styles.bubbleText, isUser ? styles.userBubbleText : styles.assistantBubbleText]}>
+                          {message.content}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+                {isThinking ? (
+                  <View style={[styles.messageRow, styles.assistantMessageRow]}>
+                    <View style={[styles.bubble, styles.assistantBubble, styles.thinkingBubble]}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.thinkingText}>Thinking</Text>
                     </View>
                   </View>
-                );
-              })}
-              {isThinking ? (
-                <View style={[styles.messageRow, styles.assistantMessageRow]}>
-                  <View style={[styles.bubble, styles.assistantBubble, styles.thinkingBubble]}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.thinkingText}>Thinking</Text>
-                  </View>
-                </View>
-              ) : null}
-            </ScrollView>
+                ) : null}
+              </ScrollView>
 
-            <View style={styles.inputRow}>
-              <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                placeholder="Ask about events..."
-                placeholderTextColor={colors.textPlaceholder}
-                multiline
-                style={styles.input}
-                editable={!isThinking}
-                onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
-              />
-              <Pressable
-                style={[styles.sendButton, (!draft.trim() || isThinking) && styles.sendButtonDisabled]}
-                onPress={handleSend}
-                disabled={!draft.trim() || isThinking}
-              >
-                <Feather name="send" size={16} color="#FFFFFF" />
-              </Pressable>
+              <View style={styles.inputRow}>
+                <TextInput
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder="Ask about events..."
+                  placeholderTextColor={colors.textPlaceholder}
+                  multiline
+                  style={styles.input}
+                  editable={!isThinking}
+                  onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
+                />
+                <Pressable
+                  style={[styles.sendButton, (!draft.trim() || isThinking) && styles.sendButtonDisabled]}
+                  onPress={handleSend}
+                  disabled={!draft.trim() || isThinking}
+                >
+                  <Feather name="send" size={16} color="#FFFFFF" />
+                </Pressable>
+              </View>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </Animated.View>
+        </View>
       </Modal>
     </>
   );
@@ -280,8 +323,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheet: {
-    maxHeight: '82%',
-    minHeight: 460,
     backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
