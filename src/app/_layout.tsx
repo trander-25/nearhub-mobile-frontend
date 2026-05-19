@@ -1,7 +1,8 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useGlobalSearchParams, useRouter, useSegments } from 'expo-router';
-import React, { useEffect } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View, useColorScheme } from 'react-native';
+import * as Updates from 'expo-updates';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { ActivityIndicator, AppState, Platform, StyleSheet, View, useColorScheme } from 'react-native';
 import { AIChatWidget, AuthRequiredModalHost } from '@/components/features';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { getOrganizerStats } from '@/services/organizerService';
@@ -37,6 +38,64 @@ const modalTransition = {
   animationDuration: 320,
   gestureEnabled: true,
 } as const;
+
+function AutoUpdateReloader() {
+  const { isUpdatePending, isRestarting } = Updates.useUpdates();
+  const isCheckingRef = useRef(false);
+  const isReloadingRef = useRef(false);
+
+  const reloadApp = useCallback(async () => {
+    if (__DEV__ || !Updates.isEnabled || isReloadingRef.current) return;
+
+    isReloadingRef.current = true;
+    try {
+      await Updates.reloadAsync();
+    } catch {
+      isReloadingRef.current = false;
+    }
+  }, []);
+
+  const checkFetchAndReload = useCallback(async () => {
+    if (__DEV__ || !Updates.isEnabled || isCheckingRef.current || isReloadingRef.current) return;
+
+    isCheckingRef.current = true;
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (!update.isAvailable && !update.isRollBackToEmbedded) return;
+
+      const fetchedUpdate = await Updates.fetchUpdateAsync();
+      if (fetchedUpdate.isNew || fetchedUpdate.isRollBackToEmbedded) {
+        await reloadApp();
+      }
+    } catch {
+      // Update checks are best-effort; the embedded/current bundle should keep running.
+    } finally {
+      isCheckingRef.current = false;
+    }
+  }, [reloadApp]);
+
+  useEffect(() => {
+    if (isUpdatePending && !isRestarting) {
+      reloadApp();
+    }
+  }, [isRestarting, isUpdatePending, reloadApp]);
+
+  useEffect(() => {
+    const initialCheck = setTimeout(checkFetchAndReload, 1500);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        checkFetchAndReload();
+      }
+    });
+
+    return () => {
+      clearTimeout(initialCheck);
+      subscription.remove();
+    };
+  }, [checkFetchAndReload]);
+
+  return null;
+}
 
 function AuthGate() {
   const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
@@ -199,6 +258,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={navigationTheme}>
       <AuthProvider>
+        <AutoUpdateReloader />
         <AuthGate />
         <AuthRequiredModalHost />
       </AuthProvider>

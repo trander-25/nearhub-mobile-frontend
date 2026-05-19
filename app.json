@@ -11,7 +11,7 @@
       "icon": "./assets/images/nearhub-app-icon.png"
     },
     "android": {
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/nearhub-app-icon.png",

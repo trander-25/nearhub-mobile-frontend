@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
-  KeyboardAvoidingView,
+  Animated,
+  Keyboard,
   Pressable,
   Modal,
   Platform,
@@ -14,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useKeyboardLift } from '@/hooks/useKeyboardLift';
 import { colors, spacing, typography, fontWeights } from '@/theme';
 
 const SORT_OPTIONS = [
@@ -57,6 +59,7 @@ export function FilterModal({
   initialRadius,
 }: FilterModalProps) {
   const insets = useSafeAreaInsets();
+  const { effectiveKeyboardLift, keyboardLift, windowHeight } = useKeyboardLift(visible);
   const [filters, setFilters] = useState<FilterState>({
     categories: initialCategories,
     city: initialCity,
@@ -81,6 +84,7 @@ export function FilterModal({
       sortBy: filters.sortBy,
       radius: filters.radius ? Number(filters.radius) : undefined,
     });
+    Keyboard.dismiss();
     onClose();
   };
 
@@ -88,114 +92,122 @@ export function FilterModal({
     setFilters({ categories: [], city: '', sortBy: 'distance', radius: '' });
   };
 
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
+  const sheetMaxHeight = Math.min(
+    Math.round(windowHeight * 0.85),
+    Math.max(320, windowHeight - insets.top - spacing.md - effectiveKeyboardLift),
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
-      >
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.xl }]}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Filters</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Feather name="x" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            style={styles.body}
-            contentContainerStyle={styles.bodyContent}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          >
-            <Text style={styles.sectionTitle}>Category</Text>
-            <View style={styles.chipWrap}>
-              {categories.map((cat) => {
-                const isActive = filters.categories.includes(cat);
-                return (
-                  <Pressable
-                    key={cat}
-                    style={[styles.filterChip, isActive && styles.filterChipActive]}
-                    onPress={() => {
-                      setFilters((prev) => {
-                        const exists = prev.categories.includes(cat);
-                        const nextCategories = exists
-                          ? prev.categories.filter((item) => item !== cat)
-                          : [...prev.categories, cat];
-                        return { ...prev, categories: nextCategories };
-                      });
-                    }}
-                  >
-                    <Text
-                      style={[styles.filterChipText, isActive && styles.filterChipTextActive]}
-                    >
-                      {cat}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={handleClose} />
+        <Animated.View style={{ marginBottom: keyboardLift }}>
+          <View style={[styles.sheet, { maxHeight: sheetMaxHeight, paddingBottom: insets.bottom + spacing.xl }]}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Filters</Text>
+              <Pressable onPress={handleClose} hitSlop={12}>
+                <Feather name="x" size={24} color={colors.textPrimary} />
+              </Pressable>
             </View>
 
-            <Text style={styles.sectionTitle}>City</Text>
-            <TextInput
-              value={filters.city}
-              onChangeText={(v) => setFilters((prev) => ({ ...prev, city: v }))}
-              placeholder="e.g. Ho Chi Minh City"
-              placeholderTextColor={colors.textPlaceholder}
-              style={styles.textInput}
-            />
-
-            <Text style={styles.sectionTitle}>Radius (km)</Text>
-            <TextInput
-              value={filters.radius}
-              onChangeText={(v) => setFilters((prev) => ({ ...prev, radius: v }))}
-              placeholder="e.g. 10"
-              placeholderTextColor={colors.textPlaceholder}
-              style={styles.textInput}
-              keyboardType="numeric"
-            />
-
-            <Text style={styles.sectionTitle}>Sort by</Text>
-            <View style={styles.chipWrap}>
-              {SORT_OPTIONS.map((opt) => {
-                const isActive = filters.sortBy === opt.value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    style={[styles.filterChip, isActive && styles.filterChipActive]}
-                    onPress={() => setFilters((prev) => ({ ...prev, sortBy: opt.value }))}
-                  >
-                    <Text
-                      style={[styles.filterChipText, isActive && styles.filterChipTextActive]}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.body}
+              contentContainerStyle={styles.bodyContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            >
+              <Text style={styles.sectionTitle}>Category</Text>
+              <View style={styles.chipWrap}>
+                {categories.map((cat) => {
+                  const isActive = filters.categories.includes(cat);
+                  return (
+                    <Pressable
+                      key={cat}
+                      style={[styles.filterChip, isActive && styles.filterChipActive]}
+                      onPress={() => {
+                        setFilters((prev) => {
+                          const exists = prev.categories.includes(cat);
+                          const nextCategories = exists
+                            ? prev.categories.filter((item) => item !== cat)
+                            : [...prev.categories, cat];
+                          return { ...prev, categories: nextCategories };
+                        });
+                      }}
                     >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </ScrollView>
+                      <Text
+                        style={[styles.filterChipText, isActive && styles.filterChipTextActive]}
+                      >
+                        {cat}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
-          <View style={styles.actions}>
-            <Pressable style={styles.resetButton} onPress={handleReset}>
-              <Text style={styles.resetButtonText}>Reset</Text>
-            </Pressable>
-            <Pressable onPress={handleApply} style={styles.applyButtonWrap}>
-              <LinearGradient
-                colors={colors.primaryGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.applyButton}
-              >
-                <Text style={styles.applyButtonText}>Apply Filters</Text>
-              </LinearGradient>
-            </Pressable>
+              <Text style={styles.sectionTitle}>City</Text>
+              <TextInput
+                value={filters.city}
+                onChangeText={(v) => setFilters((prev) => ({ ...prev, city: v }))}
+                placeholder="e.g. Ho Chi Minh City"
+                placeholderTextColor={colors.textPlaceholder}
+                style={styles.textInput}
+              />
+
+              <Text style={styles.sectionTitle}>Radius (km)</Text>
+              <TextInput
+                value={filters.radius}
+                onChangeText={(v) => setFilters((prev) => ({ ...prev, radius: v }))}
+                placeholder="e.g. 10"
+                placeholderTextColor={colors.textPlaceholder}
+                style={styles.textInput}
+                keyboardType="numeric"
+              />
+
+              <Text style={styles.sectionTitle}>Sort by</Text>
+              <View style={styles.chipWrap}>
+                {SORT_OPTIONS.map((opt) => {
+                  const isActive = filters.sortBy === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      style={[styles.filterChip, isActive && styles.filterChipActive]}
+                      onPress={() => setFilters((prev) => ({ ...prev, sortBy: opt.value }))}
+                    >
+                      <Text
+                        style={[styles.filterChipText, isActive && styles.filterChipTextActive]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <View style={styles.actions}>
+              <Pressable style={styles.resetButton} onPress={handleReset}>
+                <Text style={styles.resetButtonText}>Reset</Text>
+              </Pressable>
+              <Pressable onPress={handleApply} style={styles.applyButtonWrap}>
+                <LinearGradient
+                  colors={colors.primaryGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.applyButton}
+                >
+                  <Text style={styles.applyButtonText}>Apply Filters</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
@@ -213,7 +225,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '85%',
   },
   header: {
     flexDirection: 'row',

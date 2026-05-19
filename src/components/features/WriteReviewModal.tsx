@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
+  Animated,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   ScrollView,
@@ -15,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useKeyboardLift } from '@/hooks/useKeyboardLift';
 import { colors, spacing, typography, fontWeights } from '@/theme';
 
 interface WriteReviewModalProps {
@@ -25,6 +27,7 @@ interface WriteReviewModalProps {
 
 export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModalProps) {
   const insets = useSafeAreaInsets();
+  const { effectiveKeyboardLift, keyboardLift, windowHeight } = useKeyboardLift(visible);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,6 +39,7 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
       await onSubmit(rating, comment.trim());
       setRating(0);
       setComment('');
+      Keyboard.dismiss();
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -44,21 +48,28 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
 
   const canSubmit = rating > 0 && comment.trim().length > 0 && !isSubmitting;
 
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
+  const sheetMaxHeight = Math.min(
+    Math.round(windowHeight * 0.85),
+    Math.max(300, windowHeight - insets.top - spacing.md - effectiveKeyboardLift),
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
-      >
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Write a Review</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Feather name="x" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={handleClose} />
+        <Animated.View style={{ marginBottom: keyboardLift }}>
+          <View style={[styles.sheet, { maxHeight: sheetMaxHeight }]}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Write a Review</Text>
+              <Pressable onPress={handleClose} hitSlop={12}>
+                <Feather name="x" size={24} color={colors.textPrimary} />
+              </Pressable>
+            </View>
 
           <ScrollView
             style={styles.body}
@@ -94,7 +105,7 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
           </ScrollView>
 
           <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-            <Pressable style={styles.cancelButton} onPress={onClose}>
+            <Pressable style={styles.cancelButton} onPress={handleClose}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </Pressable>
             <Pressable onPress={handleSubmit} disabled={!canSubmit} style={styles.submitWrap}>
@@ -116,8 +127,9 @@ export function WriteReviewModal({ visible, onClose, onSubmit }: WriteReviewModa
               </LinearGradient>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+          </View>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
