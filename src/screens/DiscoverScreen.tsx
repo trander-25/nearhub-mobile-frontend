@@ -42,8 +42,8 @@ const FOR_YOU_FILTER = 'For You';
 const ALL_EVENTS_FILTER = 'All events';
 const DEFAULT_AREA_RADIUS_KM = 100;
 
-type SortBy = 'distance' | 'startAt' | 'newest' | 'popular';
-type SearchSortBy = 'relevance' | SortBy | 'random';
+type SortBy = 'closest' | 'farthest' | 'newest' | 'oldest';
+type SearchSortBy = SortBy | 'random';
 
 interface LocationState {
   lat?: number;
@@ -245,21 +245,38 @@ export function DiscoverScreen() {
       const isAllEventsMode = selectedCategory === ALL_EVENTS_FILTER;
       const canUseCoordinates = hasCoordinates(locationState);
       const radius = normalizeRadius(filterState.radius);
-      const selectedSort = (filterState.sortBy as SortBy | undefined) ?? (isAreaMode ? 'distance' : 'startAt');
+      const explicitSort = filterState.sortBy as SortBy | undefined;
+      const selectedSort = explicitSort ?? (isAreaMode || isForYouMode ? 'closest' : 'oldest');
       const cityFilter = normalizeOptionalText(filterState.city);
       const selectedTopics = filterState.topics ?? [];
       const singleTopic = selectedTopics.length === 1 ? selectedTopics[0] : undefined;
       const multiTopicCategories = selectedTopics.length > 1 ? selectedTopics : undefined;
       const categoryFilter = isAreaMode || isAllEventsMode || isForYouMode ? undefined : selectedCategory;
       const effectiveCategory = singleTopic ?? categoryFilter;
+      const sortNeedsCoordinates = selectedSort === 'closest' || selectedSort === 'farthest';
+      const usedDistanceFallbackSort = sortNeedsCoordinates && !canUseCoordinates;
+      const useRandomCoordinateFallback =
+        usedDistanceFallbackSort && !cityFilter && (isForYouMode || isAreaMode);
+      const searchSort: SearchSortBy = useRandomCoordinateFallback
+        ? 'random'
+        : usedDistanceFallbackSort
+          ? 'oldest'
+          : selectedSort;
+      const coordinatesFilter = canUseCoordinates
+        ? {
+            lat: locationState.lat,
+            lng: locationState.lng,
+            radius,
+          }
+        : {};
 
       if (isForYouMode) {
         result = await searchEvents({
           keyword: query || undefined,
           categories: hasPreferences ? preferences : undefined,
-          lat: canUseCoordinates ? locationState.lat : undefined,
-          lng: canUseCoordinates ? locationState.lng : undefined,
-          sortBy: canUseCoordinates ? 'distance' : 'random',
+          city: cityFilter,
+          ...coordinatesFilter,
+          sortBy: searchSort,
           page: pageNum,
           limit: 20,
         });
@@ -270,28 +287,20 @@ export function DiscoverScreen() {
           keyword: query || undefined,
           category: effectiveCategory,
           categories: multiTopicCategories,
+          city: cityFilter,
           sortBy: selectedSort,
           radius: radius ?? DEFAULT_AREA_RADIUS_KM,
           page: pageNum,
           limit: 20,
         });
       } else {
-        const searchSort: SearchSortBy =
-          isAreaMode && !canUseCoordinates
-            ? 'random'
-            : selectedSort === 'distance' && !canUseCoordinates
-              ? 'startAt'
-              : selectedSort;
-
         result = await searchEvents({
           keyword: query || undefined,
           category: effectiveCategory,
           categories: multiTopicCategories,
-          city: isAllEventsMode ? undefined : cityFilter,
+          city: cityFilter,
           sortBy: searchSort,
-          radius: canUseCoordinates && !isAllEventsMode ? radius : undefined,
-          lat: canUseCoordinates && !isAllEventsMode ? locationState.lat : undefined,
-          lng: canUseCoordinates && !isAllEventsMode ? locationState.lng : undefined,
+          ...coordinatesFilter,
           page: pageNum,
           limit: 20,
         });
@@ -302,7 +311,7 @@ export function DiscoverScreen() {
           ? result.events.filter((event) => selectedTopics.includes(event.category))
           : result.events;
       const nextEvents =
-        !canUseCoordinates && (isForYouMode || isAreaMode)
+        useRandomCoordinateFallback
           ? shuffleEvents(topicFilteredEvents)
           : topicFilteredEvents;
 

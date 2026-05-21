@@ -11,7 +11,6 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -244,15 +243,6 @@ export function EventDetailScreen() {
   }, [event?.organizer?.id, isAuthenticated, isFollowSubmitting, router]);
 
   const shareLink = id ? `nearhub://event/${id}` : '';
-
-  const handleShareLink = useCallback(async () => {
-    if (!shareLink) return;
-    try {
-      await Share.share(Platform.OS === 'ios' ? { url: shareLink } : { message: shareLink });
-    } catch {
-      Alert.alert('Unable to share', 'Please try again.');
-    }
-  }, [shareLink]);
 
   // --- Loading state ---
   if (isLoading) {
@@ -565,16 +555,6 @@ export function EventDetailScreen() {
             <Text style={styles.shareTitle}>Share Event</Text>
             <Pressable
               style={styles.shareOption}
-              onPress={async () => {
-                setShowShareOptions(false);
-                await handleShareLink();
-              }}
-            >
-              <Feather name="link" size={16} color={colors.primary} />
-              <Text style={styles.shareOptionText}>Share link</Text>
-            </Pressable>
-            <Pressable
-              style={styles.shareOption}
               onPress={() => {
                 setShowShareOptions(false);
                 setShowShareQrModal(true);
@@ -598,14 +578,6 @@ export function EventDetailScreen() {
             <Text numberOfLines={2} style={styles.shareLinkText}>
               {shareLink}
             </Text>
-            <Pressable
-              style={styles.sharePrimaryButton}
-              onPress={async () => {
-                await handleShareLink();
-              }}
-            >
-              <Text style={styles.sharePrimaryButtonText}>Share link</Text>
-            </Pressable>
           </View>
         </View>
       </Modal>
@@ -1124,18 +1096,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.textSecondary,
     fontSize: typography.caption,
-  },
-  sharePrimaryButton: {
-    width: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  sharePrimaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: fontWeights.semibold,
-    fontSize: typography.bodySmall,
   },
   imageViewerOverlay: {
     flex: 1,

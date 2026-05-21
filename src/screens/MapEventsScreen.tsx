@@ -81,13 +81,14 @@ export function MapEventsScreen() {
     async function loadEventsForMap() {
       setIsLoading(true);
       try {
+        const hasFocusCoordinates = Number.isFinite(focusLat) && Number.isFinite(focusLng);
         const response = await searchEvents({
           city: focusCity || undefined,
           page: 1,
           limit: 100,
-          sortBy: 'distance',
-          lat: Number.isFinite(focusLat) ? focusLat : undefined,
-          lng: Number.isFinite(focusLng) ? focusLng : undefined,
+          sortBy: hasFocusCoordinates ? 'closest' : 'oldest',
+          lat: hasFocusCoordinates ? focusLat : undefined,
+          lng: hasFocusCoordinates ? focusLng : undefined,
         });
 
         if (!mounted) return;

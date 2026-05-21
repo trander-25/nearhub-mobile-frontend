@@ -5,7 +5,7 @@ const androidGoogleMapsApiKey =
   process.env.GOOGLE_MAPS_ANDROID_API_KEY;
 
 const config: ExpoConfig = {
-  name: 'nearhub',
+  name: 'NearHub',
   slug: 'nearhub',
   owner: 'trander03',
   version: '1.0.0',

@@ -124,7 +124,7 @@ export function ForYouScreen() {
         categories: hasPreferences ? preferences : undefined,
         lat: canUseCoordinates ? locationState.lat : undefined,
         lng: canUseCoordinates ? locationState.lng : undefined,
-        sortBy: canUseCoordinates ? 'distance' : 'random',
+        sortBy: canUseCoordinates ? 'closest' : 'random',
         page: pageNum,
         limit: 20,
       });

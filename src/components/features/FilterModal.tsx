@@ -19,10 +19,10 @@ import { useKeyboardLift } from '@/hooks/useKeyboardLift';
 import { colors, spacing, typography, fontWeights } from '@/theme';
 
 const SORT_OPTIONS = [
-  { value: 'distance', label: 'Distance' },
-  { value: 'startAt', label: 'Date' },
+  { value: 'closest', label: 'Closest' },
+  { value: 'farthest', label: 'Farthest' },
   { value: 'newest', label: 'Newest' },
-  { value: 'popular', label: 'Popular' },
+  { value: 'oldest', label: 'Oldest' },
 ] as const;
 
 interface FilterState {
@@ -55,7 +55,7 @@ export function FilterModal({
   categories,
   initialCategories = [],
   initialCity = '',
-  initialSortBy = 'distance',
+  initialSortBy = 'closest',
   initialRadius,
 }: FilterModalProps) {
   const insets = useSafeAreaInsets();
@@ -89,7 +89,7 @@ export function FilterModal({
   };
 
   const handleReset = () => {
-    setFilters({ categories: [], city: '', sortBy: 'distance', radius: '' });
+    setFilters({ categories: [], city: '', sortBy: 'closest', radius: '' });
   };
 
   const handleClose = () => {

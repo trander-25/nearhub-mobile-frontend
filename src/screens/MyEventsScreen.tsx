@@ -120,7 +120,7 @@ export function MyEventsScreen() {
       </View>
       <View style={styles.eventContent}>
         <View style={styles.eventHeader}>
-          <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
           <Pressable
             style={styles.cancelBtn}
             onPress={() => handleCancelRsvp(item.id)}
@@ -143,7 +143,7 @@ export function MyEventsScreen() {
         </View>
         <View style={styles.metaRow}>
           <Feather name="map-pin" size={12} color={colors.textSecondary} />
-          <Text style={styles.metaText} numberOfLines={1}>
+          <Text style={styles.metaText}>
             {item.location?.address}{item.location?.city ? `, ${item.location.city}` : ''}
           </Text>
         </View>
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   },
   eventHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
@@ -531,13 +531,14 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   metaText: {
     flex: 1,
     fontSize: typography.bodySmall,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -560,6 +561,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   categoryText: {
+    flexShrink: 1,
     fontSize: typography.caption,
     fontWeight: fontWeights.semibold,
     color: colors.textTertiary,
