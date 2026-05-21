@@ -94,7 +94,7 @@ export interface NearbyQueryParams {
   date?: string;
   startDate?: string;
   endDate?: string;
-  sortBy?: 'distance' | 'startAt' | 'newest' | 'popular';
+  sortBy?: 'closest' | 'farthest' | 'newest' | 'oldest';
   page?: number;
   limit?: number;
 }
@@ -110,7 +110,7 @@ export interface SearchQueryParams {
   lat?: number;
   lng?: number;
   radius?: number;
-  sortBy?: 'relevance' | 'distance' | 'startAt' | 'newest' | 'popular' | 'random';
+  sortBy?: 'closest' | 'farthest' | 'newest' | 'oldest' | 'random';
   page?: number;
   limit?: number;
 }

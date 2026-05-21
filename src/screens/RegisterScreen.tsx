@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  Animated,
   Pressable,
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,12 +16,19 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useKeyboardLift } from '@/hooks/useKeyboardLift';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+
+const AUTH_KEYBOARD_CLEARANCE = spacing.xxl;
 
 export function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signUp } = useAuth();
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
+  const { keyboard, keyboardLift } = useKeyboardLift();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -63,14 +70,26 @@ export function RegisterScreen() {
     }
   }
 
+  const keyboardClearance = keyboard.isVisible ? AUTH_KEYBOARD_CLEARANCE : 0;
+
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+    <Animated.View
+      style={[
+        styles.flex,
+        {
+          marginBottom: keyboardLift,
+          transform: [{ translateY: -keyboardClearance }],
+        },
+      ]}
     >
       <ScrollView
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingTop: insets.top + 40,
+            paddingBottom: insets.bottom + 24 + keyboardClearance,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         refreshControl={refreshControl}
@@ -110,6 +129,8 @@ export function RegisterScreen() {
                 autoCapitalize="words"
                 autoComplete="name"
                 returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => emailInputRef.current?.focus()}
               />
             </View>
           </View>
@@ -119,6 +140,7 @@ export function RegisterScreen() {
             <View style={styles.inputWrapper}>
               <Feather name="mail" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
+                ref={emailInputRef}
                 style={styles.input}
                 placeholder="your@email.com"
                 placeholderTextColor={colors.textPlaceholder}
@@ -128,6 +150,8 @@ export function RegisterScreen() {
                 keyboardType="email-address"
                 autoComplete="email"
                 returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
               />
             </View>
           </View>
@@ -137,6 +161,7 @@ export function RegisterScreen() {
             <View style={styles.inputWrapper}>
               <Feather name="lock" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
+                ref={passwordInputRef}
                 style={[styles.input, styles.passwordInput]}
                 placeholder="Minimum 8 characters"
                 placeholderTextColor={colors.textPlaceholder}
@@ -145,6 +170,8 @@ export function RegisterScreen() {
                 secureTextEntry={!showPassword}
                 autoComplete="new-password"
                 returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
               />
               <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
                 <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.textTertiary} />
@@ -160,6 +187,7 @@ export function RegisterScreen() {
             ]}>
               <Feather name="lock" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
+                ref={confirmPasswordInputRef}
                 style={styles.input}
                 placeholder="Confirm your password"
                 placeholderTextColor={colors.textPlaceholder}
@@ -195,7 +223,7 @@ export function RegisterScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 

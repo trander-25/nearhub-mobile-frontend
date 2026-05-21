@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  Animated,
   Pressable,
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,12 +16,17 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontWeights, spacing, typography } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useKeyboardLift } from '@/hooks/useKeyboardLift';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+
+const AUTH_KEYBOARD_CLEARANCE = spacing.xxl;
 
 export function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signIn } = useAuth();
+  const passwordInputRef = useRef<TextInput>(null);
+  const { keyboard, keyboardLift } = useKeyboardLift();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,14 +51,26 @@ export function LoginScreen() {
     }
   }
 
+  const keyboardClearance = keyboard.isVisible ? AUTH_KEYBOARD_CLEARANCE : 0;
+
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+    <Animated.View
+      style={[
+        styles.flex,
+        {
+          marginBottom: keyboardLift,
+          transform: [{ translateY: -keyboardClearance }],
+        },
+      ]}
     >
       <ScrollView
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingTop: insets.top + 60,
+            paddingBottom: insets.bottom + 24 + keyboardClearance,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         refreshControl={refreshControl}
@@ -94,6 +111,8 @@ export function LoginScreen() {
                 keyboardType="email-address"
                 autoComplete="email"
                 returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
               />
             </View>
           </View>
@@ -103,6 +122,7 @@ export function LoginScreen() {
             <View style={styles.inputWrapper}>
               <Feather name="lock" size={18} color={colors.textTertiary} style={styles.inputIcon} />
               <TextInput
+                ref={passwordInputRef}
                 style={[styles.input, styles.passwordInput]}
                 placeholder="Minimum 8 characters"
                 placeholderTextColor={colors.textPlaceholder}
@@ -139,7 +159,7 @@ export function LoginScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 
