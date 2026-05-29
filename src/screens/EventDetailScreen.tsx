@@ -8,7 +8,6 @@ import {
   Image,
   Linking,
   Modal,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -20,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
-import QRCode from 'react-native-qrcode-svg';
 
 import { SuccessModal } from '@/components/common';
 import { colors, spacing, typography, fontWeights } from '@/theme';
@@ -94,8 +92,6 @@ export function EventDetailScreen() {
   const [showReviewSuccessModal, setShowReviewSuccessModal] = useState(false);
   const [isFollowingOrganizer, setIsFollowingOrganizer] = useState(false);
   const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
-  const [showShareOptions, setShowShareOptions] = useState(false);
-  const [showShareQrModal, setShowShareQrModal] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -241,8 +237,6 @@ export function EventDetailScreen() {
       setIsFollowSubmitting(false);
     }
   }, [event?.organizer?.id, isAuthenticated, isFollowSubmitting, router]);
-
-  const shareLink = id ? `nearhub://event/${id}` : '';
 
   // --- Loading state ---
   if (isLoading) {
@@ -503,9 +497,6 @@ export function EventDetailScreen() {
           <Feather name="arrow-left" size={18} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.navRight}>
-          <Pressable style={styles.navButtonOutline} onPress={() => setShowShareOptions(true)}>
-            <Feather name="share-2" size={16} color={colors.textPrimary} />
-          </Pressable>
           <Pressable style={[styles.navButtonOutline, isLiked && styles.navButtonLiked]} onPress={handleToggleLike}>
             <Feather
               name="heart"
@@ -547,40 +538,6 @@ export function EventDetailScreen() {
         onClose={() => setShowReviewModal(false)}
         onSubmit={handleSubmitReview}
       />
-
-      <Modal visible={showShareOptions} transparent animationType="fade" onRequestClose={() => setShowShareOptions(false)}>
-        <View style={styles.shareOverlay}>
-          <Pressable style={styles.shareBackdrop} onPress={() => setShowShareOptions(false)} />
-          <View style={[styles.shareSheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
-            <Text style={styles.shareTitle}>Share Event</Text>
-            <Pressable
-              style={styles.shareOption}
-              onPress={() => {
-                setShowShareOptions(false);
-                setShowShareQrModal(true);
-              }}
-            >
-              <Feather name="maximize" size={16} color={colors.primary} />
-              <Text style={styles.shareOptionText}>Create QR code</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showShareQrModal} transparent animationType="slide" onRequestClose={() => setShowShareQrModal(false)}>
-        <View style={styles.shareOverlay}>
-          <Pressable style={styles.shareBackdrop} onPress={() => setShowShareQrModal(false)} />
-          <View style={[styles.shareSheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
-            <Text style={styles.shareTitle}>Event QR Code</Text>
-            <View style={styles.shareQrWrap}>
-              <QRCode value={shareLink || 'nearhub://event'} size={220} />
-            </View>
-            <Text numberOfLines={2} style={styles.shareLinkText}>
-              {shareLink}
-            </Text>
-          </View>
-        </View>
-      </Modal>
 
       <Modal
         visible={showImageViewer}
@@ -1043,59 +1000,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     fontWeight: fontWeights.bold,
     color: '#FFFFFF',
-  },
-  shareOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-  },
-  shareBackdrop: {
-    flex: 1,
-  },
-  shareSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    gap: spacing.md,
-    alignItems: 'center',
-  },
-  shareTitle: {
-    alignSelf: 'flex-start',
-    fontSize: typography.heading,
-    fontWeight: fontWeights.bold,
-    color: colors.textPrimary,
-  },
-  shareOption: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  shareOptionText: {
-    fontSize: typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: fontWeights.semibold,
-  },
-  shareQrWrap: {
-    width: 236,
-    height: 236,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareLinkText: {
-    width: '100%',
-    textAlign: 'center',
-    color: colors.textSecondary,
-    fontSize: typography.caption,
   },
   imageViewerOverlay: {
     flex: 1,
